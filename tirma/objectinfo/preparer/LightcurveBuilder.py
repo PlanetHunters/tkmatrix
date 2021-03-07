@@ -5,9 +5,9 @@ import astropy.io.fits as astropy_fits
 import re
 import pandas
 from abc import ABC, abstractmethod
-from sherlockpipe.star.EpicStarCatalog import EpicStarCatalog
-from sherlockpipe.star.KicStarCatalog import KicStarCatalog
-from sherlockpipe.star.TicStarCatalog import TicStarCatalog
+from tirma.star.EpicStarCatalog import EpicStarCatalog
+from tirma.star.KicStarCatalog import KicStarCatalog
+from tirma.star.TicStarCatalog import TicStarCatalog
 
 
 class LightcurveBuilder(ABC):

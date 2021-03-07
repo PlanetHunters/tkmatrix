@@ -1,8 +1,8 @@
 import logging
 import lightkurve as lk
-from sherlockpipe.star import starinfo
-from sherlockpipe.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
-from sherlockpipe.objectinfo.preparer.LightcurveBuilder import LightcurveBuilder
+from tirma.star import starinfo
+from tirma.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
+from tirma.objectinfo.preparer.LightcurveBuilder import LightcurveBuilder
 import pandas as pd
 
 

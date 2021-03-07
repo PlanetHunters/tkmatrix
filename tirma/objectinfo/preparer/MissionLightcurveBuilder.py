@@ -4,9 +4,9 @@ import os
 import numpy as np
 import pandas
 
-from sherlockpipe.star import starinfo
-from sherlockpipe.objectinfo.ObjectProcessingError import ObjectProcessingError
-from sherlockpipe.objectinfo.preparer.LightcurveBuilder import LightcurveBuilder
+from tirma.star import starinfo
+from tirma.objectinfo.ObjectProcessingError import ObjectProcessingError
+from tirma.objectinfo.preparer.LightcurveBuilder import LightcurveBuilder
 import lightkurve as lk
 import matplotlib.pyplot as plt
 import csv
