@@ -31,6 +31,7 @@ class TestsTirma(unittest.TestCase):
             self.assertAlmostEqual(0.284, tirma.rstar_max.value, 3)
             self.assertEquals(".", tirma.dir)
             tirma.recovery(multiprocessing.cpu_count() - 1, 0)
+            self.assertEquals(2, len(os.listdir(tirma.build_inject_dir())))
         finally:
             shutil.rmtree(tirma.build_inject_dir(), ignore_errors=True)
 
@@ -40,7 +41,7 @@ class TestsTirma(unittest.TestCase):
             tirma.inject(1, 5, 5.1, 0.1, 3, 3.1, 0.1)
             self.assertEquals(4, len(os.listdir(tirma.build_inject_dir())))
             tirma.recovery(multiprocessing.cpu_count() - 1, 0, None, 0.5)
-            self.assertEquals(5, len(os.listdir(tirma.build_inject_dir())))
+            self.assertEquals(6, len(os.listdir(tirma.build_inject_dir())))
             with open(tirma.build_inject_dir() + "/a_tls_report.csv") as f:
                 for i, l in enumerate(f):
                     pass
@@ -51,10 +52,10 @@ class TestsTirma(unittest.TestCase):
     def test_inject_eight_multiphase(self):
         tirma = TIRMA("TIC 220513363", [1], ".")
         try:
-            tirma.inject(2, 5, 5, 0.1, 3, 3, 0.1)
+            tirma.inject(2, 5, 5.1, 0.1, 3, 3.1, 0.1)
             self.assertEquals(8, len(os.listdir(tirma.build_inject_dir())))
             tirma.recovery(multiprocessing.cpu_count() - 1, 0, None, 0.5)
-            self.assertEquals(9, len(os.listdir(tirma.build_inject_dir())))
+            self.assertEquals(10, len(os.listdir(tirma.build_inject_dir())))
             with open(tirma.build_inject_dir() + "/a_tls_report.csv") as f:
                 for i, l in enumerate(f):
                     pass
