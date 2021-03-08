@@ -3,7 +3,7 @@ import setuptools
 with open("README.md", "r") as fh:
     long_description = fh.read()
 version = "0.1.0"
-version = "0.1.3"
+version = "0.1.4"
 setuptools.setup(
     name="tirma", # Replace with your own username
     version=version,
