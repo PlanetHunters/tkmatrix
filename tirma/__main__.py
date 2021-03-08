@@ -9,7 +9,7 @@ from tirma.tirma import TIRMA
 if __name__ == '__main__':
     current_path = os.path.dirname(os.path.realpath(__file__))
     ap = ArgumentParser(description='Sherlock Inject&Recovery tool')
-    ap.add_argument('--dir', default=current_path, help="Working directory (if empty your current dir will be assumed)",
+    ap.add_argument('--dir', default="./", help="Working directory (if empty your current dir will be assumed)",
                     required=False)
     ap.add_argument('--properties', help="Configuration file", required=True)
     args = ap.parse_args()
