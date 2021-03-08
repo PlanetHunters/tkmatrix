@@ -1,8 +1,7 @@
 import traceback
 import numpy as np
 import ellc
-from sherlockpipe import sherlock
-
+import matplotlib.pyplot as plt
 from tirma.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
 from tirma.objectinfo.preparer.MissionLightcurveBuilder import MissionLightcurveBuilder
 from tirma.objectinfo.MissionObjectInfo import MissionObjectInfo
@@ -98,7 +97,7 @@ class TIRMA:
                     lc_df.to_csv(file_name, index=False)
         return self
 
-    def recovery(self, cores, sherlock_samples=3, known_transits=None, detrend_ws=0):
+    def recovery(self, cores, sherlock_samples=0, known_transits=None, detrend_ws=0):
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert cores is not None
         assert known_transits is None or isinstance(known_transits, list)
@@ -149,7 +148,18 @@ class TIRMA:
                 except Exception as e:
                     traceback.print_exc()
                     print("File not valid: " + file)
+        tls_report_df = pd.read_csv(inject_dir + "a_tls_report.csv", float_precision='round_trip', sep=',',
+                                    usecols=['period', 'radius', 'epoch', 'found', 'snr', 'sde', 'run'])
+        period_count = tls_report_df["period"].nunique()
+        radius_count = tls_report_df["radius"].nunique()
+        phases = len(tls_report_df) / (period_count * radius_count)
+        period_count = period_count if period_count == 1 else period_count - 1
+        radius_count = radius_count if radius_count == 1 else radius_count - 1
+        step_period = (tls_report_df["period"].max() - tls_report_df["period"].min()) / period_count
+        step_radius = (tls_report_df["radius"].max() - tls_report_df["radius"].min()) / radius_count
+        self.plot_results(step_period, step_radius, phases)
         if sherlock_samples > 0:
+            from sherlockpipe import sherlock
             from sherlockpipe.scoring.QuorumSnrBorderCorrectedSignalSelector import QuorumSnrBorderCorrectedSignalSelector
 
             class QuorumSnrBorderCorrectedStopWhenMatchSignalSelector(QuorumSnrBorderCorrectedSignalSelector):
@@ -188,8 +198,6 @@ class TIRMA:
             report = {}
             reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'found', 'snr', 'sde', 'run'])
             a = False
-            tls_report_df = pd.read_csv(inject_dir + "a_tls_report.csv", float_precision='round_trip', sep=',',
-                                        usecols=['period', 'radius', 'epoch', 'found', 'snr', 'sde', 'run'])
             samples_analysed = sherlock_samples
             for index, row in tls_report_df[::-1].iterrows():
                 file = os.path.join(
@@ -320,6 +328,50 @@ class TIRMA:
             result[intransit] = True
         return result
 
+    def plot_results(self, step_period, step_radius, phases, plot_step_period=1, plot_step_radius=1):
+        inject_dir = self.build_inject_dir()
+        df = pd.read_csv(inject_dir + "a_tls_report.csv")
+        min_period = df["period"].min()
+        max_period = df["period"].max()
+        min_rad = df["radius"].min()
+        max_rad = df["radius"].max()
+        if step_period <= 0:
+            step_period = 0.1
+        if step_radius <= 0:
+            step_radius = 0.1
+        period_grid = np.arange(min_period, max_period + 0.01, step_period)
+        radius_grid = np.arange(min_rad, max_rad + 0.01, step_radius)
+        result = np.zeros((len(period_grid), len(radius_grid)))
+        for i in period_grid:
+            ipos = int(round((i - min_period) * 1 / step_period))
+            for j in radius_grid:
+                jpos = int(round((j - min_rad) * 1 / step_radius))
+                sel_df = df[self.__equal(df["period"], i)]
+                sel_df = sel_df[self.__equal(sel_df["radius"], j)]
+                found_count = len(sel_df[sel_df["found"]])
+                result[ipos][jpos] = found_count / phases * 100
+        result = np.transpose(result)
+        fig, ax = plt.subplots()
+        im = ax.imshow(result)
+        ax.set_xticks(np.arange(len(period_grid), step=plot_step_period))
+        ax.set_yticks(np.arange(len(radius_grid), step=plot_step_radius))
+        ax.set_xticklabels(period_grid[0::plot_step_period])
+        ax.set_yticklabels(radius_grid[0::plot_step_radius])
+        ax.set_xlabel("Period")
+        ax.set_ylabel("Radius")
+        plt.setp(ax.get_xticklabels(), rotation=30, ha="right",
+                 rotation_mode="anchor")
+        cbar = ax.figure.colorbar(im, ax=ax, shrink=len(period_grid) / len(radius_grid))
+        cbar.ax.set_ylabel("% of found transits", rotation=-90, va="bottom")
+        # Rotate the tick labels and set their alignment.
+        plt.setp(ax.get_xticklabels(), rotation=90, ha="right",
+                 rotation_mode="anchor")
+        plt.gca().invert_yaxis()
+        ax.set_title(self.id + " - TLS P/R recovery")
+        fig.tight_layout()
+        plt.savefig(inject_dir + "a_tls_report.png")
+        plt.close()
+
     def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
                      period, min_period, max_period, min_snr, cores, transit_template, ws):
         SNR = 1e12
@@ -328,8 +380,8 @@ class TIRMA:
         flux = flux[~intransit]
         time, flux = cleaned_array(time, flux)
         run = 0
-        #TODO allow addition of custom window length
-        flux = wotan.flatten(time, flux, window_length=ws, return_trend=False, method='biweight', break_tolerance=0.5)
+        if ws > 0:
+            flux = wotan.flatten(time, flux, window_length=ws, return_trend=False, method='biweight', break_tolerance=0.5)
         #::: search for the rest
         while (SNR >= min_snr) and (not FOUND_SIGNAL):
             model = transitleastsquares(time, flux)
