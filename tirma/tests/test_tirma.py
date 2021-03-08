@@ -31,7 +31,7 @@ class TestsTirma(unittest.TestCase):
             self.assertAlmostEqual(0.284, tirma.rstar_max.value, 3)
             self.assertEquals(".", tirma.dir)
             tirma.recovery(multiprocessing.cpu_count() - 1, 0)
-            self.assertEquals(2, len(os.listdir(tirma.build_inject_dir())))
+            self.assertEquals(3, len(os.listdir(tirma.build_inject_dir())))
         finally:
             shutil.rmtree(tirma.build_inject_dir(), ignore_errors=True)
 
