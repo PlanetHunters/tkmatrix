@@ -5,14 +5,14 @@ with open("README.md", "r") as fh:
 version = "0.1.0"
 version = "0.1.4"
 setuptools.setup(
-    name="tirma", # Replace with your own username
+    name="tkmatrix", # Replace with your own username
     version=version,
     author="M. Dévora-Pajares & F.J. Pozuelos",
     author_email="mdevorapajares@protonmail.com",
-    description="Transit Inject and Recovery Multi-phase Analysis package",
+    description="ToolKit for Multi-phase Augmented Transits Recovery from Injected eXoplanets",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/martindevora/tirma",
+    url="https://github.com/martindevora/tkmatrix",
     packages=setuptools.find_packages(),
     include_package_data=True,
     classifiers=[
