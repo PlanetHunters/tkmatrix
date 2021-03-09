@@ -3,7 +3,7 @@ import os
 import yaml
 from argparse import ArgumentParser
 from os import path
-from tirma.tirma import TIRMA
+from tirma.tirma_class import TIRMA
 
 
 if __name__ == '__main__':
@@ -26,4 +26,4 @@ if __name__ == '__main__':
                 tirma_user_properties["MIN_RADIUS"], tirma_user_properties["MAX_RADIUS"],
                 tirma_user_properties["STEP_RADIUS"]) \
         .recovery(tirma_user_properties["CPUS"], tirma_user_properties["SHERLOCK_DEEPNESS"],
-                  tirma_user_properties["DETREND_WS"], tirma_user_properties["KNOWN_TRANSITS"])
+                  tirma_user_properties["KNOWN_TRANSITS"], tirma_user_properties["DETREND_WS"])
