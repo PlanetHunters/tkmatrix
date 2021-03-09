@@ -1,4 +1,4 @@
-from tirma.object_info.ObjectInfo import ObjectInfo
+from tirma.objectinfo.ObjectInfo import ObjectInfo
 
 class MissionInputObjectInfo(ObjectInfo):
     """

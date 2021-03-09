@@ -1,5 +1,5 @@
 import os
-from tirma.object_info.ObjectInfo import ObjectInfo
+from tirma.objectinfo.ObjectInfo import ObjectInfo
 
 class InputObjectInfo(ObjectInfo):
     """
