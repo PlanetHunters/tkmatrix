@@ -5,7 +5,7 @@ import unittest
 import astropy.units as u
 from transitleastsquares import transitleastsquares
 
-from tirma.tirma import TIRMA
+from tirma.tirma_class import TIRMA
 
 
 class TestsTirma(unittest.TestCase):

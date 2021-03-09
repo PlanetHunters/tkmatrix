@@ -2,9 +2,9 @@ import traceback
 import numpy as np
 import ellc
 import matplotlib.pyplot as plt
-from tirma.object_info.MissionInputObjectInfo import MissionInputObjectInfo
-from tirma.object_info.preparer.MissionLightcurveBuilder import MissionLightcurveBuilder
-from tirma.object_info.MissionObjectInfo import MissionObjectInfo
+from tirma.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
+from tirma.objectinfo.preparer.MissionLightcurveBuilder import MissionLightcurveBuilder
+from tirma.objectinfo.MissionObjectInfo import MissionObjectInfo
 import wotan
 from transitleastsquares import transitleastsquares
 from transitleastsquares import transit_mask, cleaned_array
