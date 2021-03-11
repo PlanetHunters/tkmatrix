@@ -1,8 +1,8 @@
 import logging
 import lightkurve as lk
-from tirma.star import starinfo
-from tirma.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
-from tirma.objectinfo.preparer.LightcurveBuilder import LightcurveBuilder
+from tkmatrix.star import starinfo
+from tkmatrix.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
+from tkmatrix.objectinfo.preparer.LightcurveBuilder import LightcurveBuilder
 import pandas as pd
 
 

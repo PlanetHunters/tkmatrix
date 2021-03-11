@@ -2,9 +2,9 @@ import traceback
 import numpy as np
 import ellc
 import matplotlib.pyplot as plt
-from tirma.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
-from tirma.objectinfo.preparer.MissionLightcurveBuilder import MissionLightcurveBuilder
-from tirma.objectinfo.MissionObjectInfo import MissionObjectInfo
+from tkmatrix.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
+from tkmatrix.objectinfo.preparer.MissionLightcurveBuilder import MissionLightcurveBuilder
+from tkmatrix.objectinfo.MissionObjectInfo import MissionObjectInfo
 import wotan
 from transitleastsquares import transitleastsquares
 from transitleastsquares import transit_mask, cleaned_array
@@ -137,7 +137,8 @@ class TIRMA:
                         found, snr, sde, run = self.__tls_search(time, flux, self.radius, self.radiusmin,
                                                                  self.radiusmax, self.mass, self.massmin,
                                                                  self.massmax, self.ab, intransit, epoch, period, 0.5,
-                                                                 45, 5, cores, "default", detrend_ws)
+                                                                 time[len(time) - 1] - time[0], 5, cores, "default",
+                                                                 detrend_ws, self.transits_min_count)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run}
                     reports_df = reports_df.append(new_report, ignore_index=True)
@@ -373,7 +374,7 @@ class TIRMA:
         plt.close()
 
     def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
-                     period, min_period, max_period, min_snr, cores, transit_template, ws):
+                     period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count):
         SNR = 1e12
         FOUND_SIGNAL = False
         time = time[~intransit]
@@ -395,7 +396,7 @@ class TIRMA:
                                   M_star_max=mstar_max,  # mstar_max/u.M_sun,
                                   period_min=min_period,
                                   period_max=max_period,
-                                  n_transits_min=2,
+                                  n_transits_min=transits_min_count,
                                   show_progress_bar=False,
                                   use_threads=cores,
                                   transit_template=transit_template

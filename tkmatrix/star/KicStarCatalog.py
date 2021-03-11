@@ -1,4 +1,4 @@
-from tirma.star.StarCatalog import StarCatalog
+from tkmatrix.star.StarCatalog import StarCatalog
 from astroquery.vizier import Vizier
 import transitleastsquares as tls
 

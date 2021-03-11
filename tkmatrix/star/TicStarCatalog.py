@@ -1,5 +1,5 @@
 import numpy as np
-from tirma.star.StarCatalog import StarCatalog
+from tkmatrix.star.StarCatalog import StarCatalog
 from astroquery.mast import Catalogs
 import transitleastsquares as tls
 

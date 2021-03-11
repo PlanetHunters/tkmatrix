@@ -3,7 +3,7 @@ import os
 import yaml
 from argparse import ArgumentParser
 from os import path
-from tirma.tirma_class import TIRMA
+from tkmatrix.tkmatrix_class import TIRMA
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-from tirma.objectinfo.ObjectInfo import ObjectInfo
+from tkmatrix.objectinfo.ObjectInfo import ObjectInfo
 
 
 class MissionObjectInfo(ObjectInfo):
