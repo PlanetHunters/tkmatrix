@@ -1,5 +1,5 @@
 # MATRIX ToolKit
-ToolKit for Multi-phase Augmented Transits Recovery from Injected eXoplanets
+ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 
 ## Installation
 `python3 -m pip install tkmatrix`
