@@ -3,7 +3,7 @@ import os
 import yaml
 from argparse import ArgumentParser
 from os import path
-from tkmatrix.tkmatrix_class import TIRMA
+from tkmatrix.tkmatrix_class import MATRIX
 
 
 if __name__ == '__main__':
@@ -20,7 +20,7 @@ if __name__ == '__main__':
     tirma_user_properties = yaml.load(open(file_dir), yaml.SafeLoader)
     user_properties = yaml.load(open(args.properties), yaml.SafeLoader)
     tirma_user_properties.update(user_properties)
-    ir = TIRMA(tirma_user_properties["TARGET"], tirma_user_properties["SECTORS"], args.dir) \
+    ir = MATRIX(tirma_user_properties["TARGET"], tirma_user_properties["SECTORS"], args.dir) \
         .inject(tirma_user_properties["PHASES"], tirma_user_properties["MIN_PERIOD"],
                 tirma_user_properties["MAX_PERIOD"], tirma_user_properties["STEP_PERIOD"],
                 tirma_user_properties["MIN_RADIUS"], tirma_user_properties["MAX_RADIUS"],

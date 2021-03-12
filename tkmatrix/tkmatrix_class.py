@@ -17,9 +17,9 @@ import pandas as pd
 import shutil
 
 
-class TIRMA:
+class MATRIX:
     """
-    TIRMA: Transit Inject and Recovery with Multi-phase Analysis
+    MATRIX: Multi-phAse Transits Recovery from Injected eXoplanets
     """
     object_info = None
 
