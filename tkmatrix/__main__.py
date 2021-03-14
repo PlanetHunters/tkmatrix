@@ -45,7 +45,7 @@ if __name__ == '__main__':
         .inject(tirma_user_properties["PHASES"], tirma_user_properties["MIN_PERIOD"],
                 tirma_user_properties["MAX_PERIOD"], tirma_user_properties["STEP_PERIOD"],
                 tirma_user_properties["MIN_RADIUS"], tirma_user_properties["MAX_RADIUS"],
-                tirma_user_properties["STEP_RADIUS"]) \
+                tirma_user_properties["STEP_RADIUS"], tirma_user_properties["EXPOSURE_TIME"]) \
         .recovery(tirma_user_properties["CPUS"], tirma_user_properties["SHERLOCK_DEEPNESS"],
                   tirma_user_properties["KNOWN_TRANSITS"], tirma_user_properties["DETREND_WS"])
 
