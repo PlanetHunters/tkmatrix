@@ -62,7 +62,7 @@ class MATRIX:
     def build_inject_dir(self):
         return self.dir + "/" + self.object_info.mission_id().replace(" ", "") + "_ir/"
 
-    def inject(self, phases, min_period, max_period, step_period, min_radius, max_radius, step_radius):
+    def inject(self, phases, min_period, max_period, step_period, min_radius, max_radius, step_radius, exposure_time):
         assert phases is not None and isinstance(phases, int)
         assert min_period is not None and isinstance(min_period, (int, float))
         assert max_period is not None and isinstance(max_period, (int, float))
@@ -70,6 +70,7 @@ class MATRIX:
         assert min_radius is not None and isinstance(min_radius, (int, float))
         assert max_radius is not None and isinstance(max_radius, (int, float))
         assert step_radius is not None and isinstance(step_radius, (int, float))
+        assert exposure_time is not None and isinstance(exposure_time, (int, float))
         self.retrieve_object_data()
         lc_new = lk.LightCurve(time=self.lc.time, flux=self.lc.flux, flux_err=self.lc.flux_err)
         clean = lc_new.remove_outliers(sigma_lower=float('inf'), sigma_upper=3)
@@ -87,7 +88,7 @@ class MATRIX:
                     print('\n')
                     print('P = ' + str(period) + ' days, Rp = ' + str(rplanet) + ", T0 = " + str(t0))
                     time_model, flux_model, flux_err_model = self.__make_model(time, flux0, flux_err, self.rstar,
-                                                                               self.mstar, t0, period, rplanet)
+                                                                               self.mstar, t0, period, rplanet, exposure_time)
                     file_name = os.path.join(inject_dir + '/P' + str(period) + '_R' + str(rplanet.value) + '_' + str(t0) +
                                              '.csv')
                     lc_df = pd.DataFrame(columns=['#time', 'flux', 'flux_err'])
@@ -271,16 +272,10 @@ class MATRIX:
                         print("File not valid: " + file)
 
 
-    def __make_model(self, time, flux, flux_err, rstar, mstar, epoch, period, rplanet):
-        # a = (7.495e-6 * period**2)**(1./3.)*u.au #in AU
+    def __make_model(self, time, flux, flux_err, rstar, mstar, epoch, period, rplanet,exposure_time):
         P1 = period * u.day
         a = np.cbrt((ac.G * mstar * P1 ** 2) / (4 * np.pi ** 2)).to(u.au)
-        # print("radius_1 =", rstar.to(u.au) / a) #star radius convert from AU to in units of a
-        # print("radius_2 =", rplanet.to(u.au) / a)
-        texpo = 2. / 60. / 24.
-        # print("T_expo = ", texpo,"dy")
-        # tdur=t14(R_s=radius, M_s=mass,P=period,small_planet=False) #we define the typical duration of a small planet in this star
-        # print("transit_duration= ", tdur*24*60,"min" )
+        texpo = exposure_time / 60. / 60. / 24.
         model = ellc.lc(
             t_obs=time,
             radius_1=rstar.to(u.au) / a,  # star radius convert from AU to in units of a
