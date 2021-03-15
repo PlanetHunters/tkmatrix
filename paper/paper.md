@@ -1,5 +1,5 @@
 ---
-title: '``TIRMA``: Transits Inject and Recovery Multi-phase Analysis.'
+title: '``MATRIX``: Multi-phAse Transits Recovery from Injected eXoplanets.'
 tags:
   - Python
   - Astronomy
@@ -8,10 +8,10 @@ tags:
   - K2
   - TESS
 authors:
-  - name: Martín Dévora-Pajares
+  - name: Martín Dévora-Pajares(*)
     orcid: 0000-0003-2007-6144 
-    affiliation: "3"
-  - name: Francisco J. Pozuelos
+    affiliation: 1
+  - name: Francisco J. Pozuelos(*)
     orcid: 0000-0003-1572-7707
     affiliation: "2, 3" # (Multiple affiliations must be quoted)
   - name: Luis Cerdeño Mota
@@ -76,7 +76,7 @@ The most usual way to study the ability of a given exoplanet search tool of find
 launch of an inject and recovery process for a grid of periods and planet radius. For this traditional case, 
 MATRIX provides an easy-to-use execution command which only needs to be fed with a YAML file including the 
 scenario parameters 
-(see [mono-phase.yaml](https://github.com/mdevora/matrix/blob/master/examples/mono-phase.yaml) file.). You
+(see [mono-phase.yaml](https://github.com/martindevora/matrix/blob/master/examples/mono-phase.yaml) file.). You
 can appreciate that the `PHASES` property is set to `1`.
 
 ## Multi-phase inject and recovery
