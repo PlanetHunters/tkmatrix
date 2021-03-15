@@ -30,6 +30,8 @@ if __name__ == '__main__':
     ap.add_argument('--dir', default="./", help="Working directory (if empty your current dir will be assumed)",
                     required=False)
     ap.add_argument('--properties', help="Configuration file", required=True)
+    ap.add_argument('--preserve', help="Preserve the inject file. By default they should be removed and only kept if the flag is enabled.",
+                    action="store_true", required=False)
     args = ap.parse_args()
     resources_dir = path.join(path.dirname(__file__))
     file_dir = resources_dir + "/" + 'properties.yaml' if resources_dir != "" and resources_dir is not None \
@@ -37,11 +39,12 @@ if __name__ == '__main__':
     print("The resource dir is: " + str(resources_dir))
     tirma_user_properties = yaml.load(open(file_dir), yaml.SafeLoader)
     user_properties = yaml.load(open(args.properties), yaml.SafeLoader)
+    preserve = args.preserve
     tirma_user_properties.update(user_properties)
 
     tirma_user_properties["CPUS"] = get_cpus()
 
-    ir = MATRIX(tirma_user_properties["TARGET"], tirma_user_properties["SECTORS"], args.dir) \
+    ir = MATRIX(tirma_user_properties["TARGET"], tirma_user_properties["SECTORS"], args.dir, args.preserve) \
         .inject(tirma_user_properties["PHASES"], tirma_user_properties["MIN_PERIOD"],
                 tirma_user_properties["MAX_PERIOD"], tirma_user_properties["STEP_PERIOD"],
                 tirma_user_properties["MIN_RADIUS"], tirma_user_properties["MAX_RADIUS"],
@@ -50,4 +53,4 @@ if __name__ == '__main__':
                   tirma_user_properties["KNOWN_TRANSITS"], tirma_user_properties["DETREND_WS"])
 
     # print the execution time:
-    print("Execution time: " str(datetime.datetime.now() - start_time))
+    print("Execution time: " + str(datetime.datetime.now() - start_time))
