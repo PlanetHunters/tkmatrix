@@ -325,6 +325,7 @@ class MATRIX:
         return result
 
     def plot_results(self, step_period, step_radius, phases, plot_step_period=1, plot_step_radius=1):
+        self.object_info = MissionObjectInfo(self.id, self.sectors)
         inject_dir = self.build_inject_dir()
         df = pd.read_csv(inject_dir + "a_tls_report.csv")
         min_period = df["period"].min()
@@ -351,19 +352,18 @@ class MATRIX:
         im = ax.imshow(result)
         ax.set_xticks(np.arange(len(period_grid), step=plot_step_period))
         ax.set_yticks(np.arange(len(radius_grid), step=plot_step_radius))
-        ax.set_xticklabels(period_grid[0::plot_step_period])
-        ax.set_yticklabels(radius_grid[0::plot_step_radius])
-        ax.set_xlabel("Period")
-        ax.set_ylabel("Radius")
+        ax.set_xticklabels(np.round(period_grid[0::plot_step_period], 2))
+        ax.set_yticklabels(np.round(radius_grid[0::plot_step_radius], 2))
+        ax.set_xlabel("Injected period (days)")
+        ax.set_ylabel("Injected radius (" + r'$R_\oplus$ ' + ")")
         plt.setp(ax.get_xticklabels(), rotation=30, ha="right",
                  rotation_mode="anchor")
         cbar = ax.figure.colorbar(im, ax=ax, shrink=len(period_grid) / len(radius_grid))
-        cbar.ax.set_ylabel("% of found transits", rotation=-90, va="bottom")
+        cbar.ax.set_ylabel("Recovery rate (%)", rotation=-90, va="bottom")
         # Rotate the tick labels and set their alignment.
-        plt.setp(ax.get_xticklabels(), rotation=90, ha="right",
-                 rotation_mode="anchor")
+        plt.setp(ax.get_xticklabels(), rotation=90, ha="right", rotation_mode="anchor")
         plt.gca().invert_yaxis()
-        ax.set_title(self.id + " - TLS P/R recovery")
+        ax.set_title(self.id + " - P/R recovery")
         fig.tight_layout()
         plt.savefig(inject_dir + "a_tls_report.png")
         plt.close()
