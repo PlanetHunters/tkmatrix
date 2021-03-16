@@ -23,7 +23,7 @@ class MATRIX:
     """
     object_info = None
 
-    def __init__(self, target, sectors, dir, preserve):
+    def __init__(self, target, sectors, dir, preserve=False):
         assert target is not None and isinstance(target, str)
         assert sectors is not None and (sectors == 'all' or isinstance(sectors, list))
         self.id = target
@@ -65,13 +65,13 @@ class MATRIX:
 
     def inject(self, phases, min_period, max_period, step_period, min_radius, max_radius, step_radius, exposure_time):
         assert phases is not None and isinstance(phases, int)
-        assert min_period is not None and isinstance(min_period, (int, float))
-        assert max_period is not None and isinstance(max_period, (int, float))
-        assert step_period is not None and isinstance(step_period, (int, float))
-        assert min_radius is not None and isinstance(min_radius, (int, float))
-        assert max_radius is not None and isinstance(max_radius, (int, float))
-        assert step_radius is not None and isinstance(step_radius, (int, float))
-        assert exposure_time is not None and isinstance(exposure_time, (int, float))
+        assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
+        assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
+        assert step_period is not None and isinstance(step_period, (int, float)) and step_period > 0
+        assert min_radius is not None and isinstance(min_radius, (int, float)) and min_radius > 0
+        assert max_radius is not None and isinstance(max_radius, (int, float)) and max_radius > 0
+        assert step_radius is not None and isinstance(step_radius, (int, float)) and step_radius > 0
+        assert exposure_time is not None and isinstance(exposure_time, (int, float)) and exposure_time > 0
         self.retrieve_object_data()
         lc_new = lk.LightCurve(time=self.lc.time, flux=self.lc.flux, flux_err=self.lc.flux_err)
         clean = lc_new.remove_outliers(sigma_lower=float('inf'), sigma_upper=3)
