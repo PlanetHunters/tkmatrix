@@ -3,6 +3,7 @@ import os
 import shutil
 import unittest
 import astropy.units as u
+import pytest
 from transitleastsquares import transitleastsquares
 
 from tkmatrix.tkmatrix_class import MATRIX
@@ -12,7 +13,7 @@ class TestsMatrix(unittest.TestCase):
     def test_inject_one(self):
         matrix = MATRIX("TIC 220513363", [1], ".")
         try:
-            matrix.inject(1, 5, 5, 0.1, 3, 3, 0.1)
+            matrix.inject(1, 5, 5, 0.1, 3, 3, 0.1, 120)
             self.assertEquals(1, len(os.listdir(matrix.build_inject_dir())))
             self.assertEquals([1], matrix.sectors)
             self.assertAlmostEqual(0.47, matrix.mass, 2)
@@ -38,7 +39,7 @@ class TestsMatrix(unittest.TestCase):
     def test_inject_four(self):
         matrix = MATRIX("TIC 220513363", [1], ".")
         try:
-            matrix.inject(1, 5, 5.1, 0.1, 3, 3.1, 0.1)
+            matrix.inject(1, 5, 5.1, 0.1, 3, 3.1, 0.1, 120)
             self.assertEquals(4, len(os.listdir(matrix.build_inject_dir())))
             matrix.recovery(multiprocessing.cpu_count() - 1, 0, None, 0.5)
             self.assertEquals(6, len(os.listdir(matrix.build_inject_dir())))
@@ -52,7 +53,7 @@ class TestsMatrix(unittest.TestCase):
     def test_inject_eight_multiphase(self):
         matrix = MATRIX("TIC 220513363", [1], ".")
         try:
-            matrix.inject(2, 5, 5.1, 0.1, 3, 3.1, 0.1)
+            matrix.inject(2, 5, 5.1, 0.1, 3, 3.1, 0.1, 120)
             self.assertEquals(8, len(os.listdir(matrix.build_inject_dir())))
             matrix.recovery(multiprocessing.cpu_count() - 1, 0, None, 0.5)
             self.assertEquals(10, len(os.listdir(matrix.build_inject_dir())))
@@ -81,7 +82,17 @@ class TestsMatrix(unittest.TestCase):
             self.assertNotAlmostEqual(5.43, results.period, 2)
         finally:
             shutil.rmtree(matrix.build_inject_dir(), ignore_errors=True)
-            
+
+    def test_inject_inputs(self):
+        matrix = MATRIX("TIC 305048087", [2], ".")
+        with(pytest.raises(AssertionError)):
+            matrix.inject(2, 5, 5.1, 0.1, 3, 3.1, 0.1, None)
+        with(pytest.raises(AssertionError)):
+            matrix.inject(2, 5, 5.1, 0.1, 3, 3.1, 0.1, -2)
+        with(pytest.raises(AssertionError)):
+            matrix.inject(2, 5, 5.1, 0.1, 3, 3.1, 0.1, "bla")
+
+
 
 if __name__ == '__main__':
     unittest.main()
