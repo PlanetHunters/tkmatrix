@@ -14,7 +14,7 @@ import lightkurve as lk
 import os
 import re
 import pandas as pd
-import shutil
+#import shutil
 
 
 class MATRIX:
@@ -61,7 +61,18 @@ class MATRIX:
         print('radius_max =', format(self.rstar_max,'0.5f'))
 
     def build_inject_dir(self):
-        return self.dir + "/" + self.object_info.mission_id().replace(" ", "") + "_ir/"
+        inject_dir = self.dir + "/" + self.object_info.mission_id().replace(" ", "") + "_ir/"
+        if os.path.isdir(inject_dir):
+            folder_list = sorted([x[0] for x in os.walk(self.dir) if x[0].find(self.object_info.mission_id().replace(" ", "")) > 0], key=os.path.getmtime)
+            last_element = folder_list[len(folder_list)-1]
+            last_number_index = last_element.rfind("_")
+            number = last_element[last_number_index+1:len(last_element)]
+            if number.isdigit():
+                inject_dir = self.dir + "/" + inject_dir[:-1] + "_" + str(int(number) + 1) + "/"
+            else:
+                inject_dir = self.dir + "/" + inject_dir[:-1] + "_1/"
+
+        return inject_dir
 
     def inject(self, phases, min_period, max_period, step_period, min_radius, max_radius, step_radius, exposure_time):
         assert phases is not None and isinstance(phases, int)
@@ -79,15 +90,6 @@ class MATRIX:
         time = clean.time.value
         flux_err = clean.flux_err.value
         inject_dir = self.build_inject_dir()
-        if os.path.isdir(inject_dir):
-            folder_list = sorted([x[0] for x in os.walk(self.dir) if x[0].find(self.object_info.mission_id().replace(" ", "")) > 0], key=os.path.getmtime)
-            last_element = folder_list[len(folder_list)-1]
-            last_number_index = last_element.rfind("_")
-            number = last_element[last_number_index+1:len(last_element)]
-            if number.isdigit():
-                inject_dir = inject_dir[:-1] + "_" + str(int(number) + 1) + "/"
-            else:
-                inject_dir = inject_dir[:-1] + "_1/"
         os.mkdir(inject_dir)
         for period in np.arange(min_period, max_period + 0.01, step_period):
             for t0 in np.arange(time[60], time[60] + period - 0.1, period / phases):
