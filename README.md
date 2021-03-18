@@ -1,3 +1,7 @@
+<p align="center">
+  <img width="400px" src="https://github.com/martindevora/tkmatrix/blob/master/images/matrix.jpg?raw=true">
+</p>
+
 # MATRIX ToolKit
 ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 
