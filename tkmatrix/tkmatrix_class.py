@@ -108,13 +108,19 @@ class MATRIX:
                     lc_df.to_csv(file_name, index=False)
         return inject_dir
 
-    def recovery(self, cores, inject_dir, snr_threshold=5, sherlock_samples=0, known_transits=None, detrend_ws=0):
+    def recovery(self, cores, inject_dir, snr_threshold=5, sherlock_samples=0, known_transits=None, detrend_ws=0, transit_template='tls'):
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert cores is not None
         assert known_transits is None or isinstance(known_transits, list)
+        assert transit_template in ('tls', 'bls')
         assert inject_dir is not None and isinstance(inject_dir, str)
+
         if self.object_info is None:
             self.retrieve_object_data()
+        if transit_template == 'tls':
+            transit_template = 'default'
+        elif transit_template == 'bls':
+            transit_template = 'box'
         print('\n STELLAR PROPERTIES FOR THE SIGNAL SEARCH')
         print('================================================\n')
         print('limb-darkening estimates using quadratic LD (a,b)=', self.ab)
@@ -149,7 +155,7 @@ class MATRIX:
                                                                  self.radiusmax, self.mass, self.massmin,
                                                                  self.massmax, self.ab, intransit, epoch, period, 0.5,
                                                                  time[len(time) - 1] - time[0], snr_threshold, cores,
-                                                                 "default", detrend_ws, self.transits_min_count)
+                                                                 transit_template, detrend_ws, self.transits_min_count)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run}
                     reports_df = reports_df.append(new_report, ignore_index=True)
