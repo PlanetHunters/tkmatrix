@@ -106,13 +106,15 @@ class MATRIX:
                     lc_df['flux'] = flux_model
                     lc_df['flux_err'] = flux_err_model
                     lc_df.to_csv(file_name, index=False)
-        return self
+        return inject_dir
 
-    def recovery(self, cores, sherlock_samples=0, known_transits=None, detrend_ws=0, transit_template='tls'):
+    def recovery(self, cores, inject_dir, snr_threshold=5, sherlock_samples=0, known_transits=None, detrend_ws=0, transit_template='tls'):
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert cores is not None
         assert known_transits is None or isinstance(known_transits, list)
         assert transit_template in ('tls', 'bls')
+        assert inject_dir is not None and isinstance(inject_dir, str)
+
         if self.object_info is None:
             self.retrieve_object_data()
         if transit_template == 'tls':
@@ -129,7 +131,6 @@ class MATRIX:
         print('radius_min =', format(self.rstar_min, '0.5f'))
         print('radius_max =', format(self.rstar_max, '0.5f'))
         reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'found', 'snr', 'sde', 'run'])
-        inject_dir = self.build_inject_dir()
         for file in os.listdir(inject_dir):
             if file.endswith(".csv"):
                 try:
@@ -153,7 +154,7 @@ class MATRIX:
                         found, snr, sde, run = self.__tls_search(time, flux, self.radius, self.radiusmin,
                                                                  self.radiusmax, self.mass, self.massmin,
                                                                  self.massmax, self.ab, intransit, epoch, period, 0.5,
-                                                                 time[len(time) - 1] - time[0], 5, cores,
+                                                                 time[len(time) - 1] - time[0], snr_threshold, cores,
                                                                  transit_template, detrend_ws, self.transits_min_count)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run}
@@ -174,7 +175,7 @@ class MATRIX:
         radius_count = radius_count if radius_count == 1 else radius_count - 1
         step_period = (tls_report_df["period"].max() - tls_report_df["period"].min()) / period_count
         step_radius = (tls_report_df["radius"].max() - tls_report_df["radius"].min()) / radius_count
-        self.plot_results(step_period, step_radius, phases)
+        self.plot_results(inject_dir, step_period, step_radius, phases)
         if sherlock_samples > 0:
             from sherlockpipe import sherlock
             from sherlockpipe.scoring.QuorumSnrBorderCorrectedSignalSelector import QuorumSnrBorderCorrectedSignalSelector
@@ -341,9 +342,8 @@ class MATRIX:
             result[intransit] = True
         return result
 
-    def plot_results(self, step_period, step_radius, phases, plot_step_period=1, plot_step_radius=1):
+    def plot_results(self, inject_dir, step_period, step_radius, phases, plot_step_period=1, plot_step_radius=1):
         self.object_info = MissionObjectInfo(self.id, self.sectors)
-        inject_dir = self.build_inject_dir()
         df = pd.read_csv(inject_dir + "a_tls_report.csv")
         min_period = df["period"].min()
         max_period = df["period"].max()
@@ -387,8 +387,8 @@ class MATRIX:
 
     def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
                      period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count):
-        SNR = 1e12
-        FOUND_SIGNAL = False
+        snr = 1e12
+        found_signal = False
         time = time[~intransit]
         flux = flux[~intransit]
         time, flux = cleaned_array(time, flux)
@@ -396,7 +396,7 @@ class MATRIX:
         if ws > 0:
             flux = wotan.flatten(time, flux, window_length=ws, return_trend=False, method='biweight', break_tolerance=0.5)
         #::: search for the rest
-        while (SNR >= min_snr) and (not FOUND_SIGNAL):
+        while snr >= min_snr and not found_signal:
             model = transitleastsquares(time, flux)
             # R_starx = rstar / u.R_sun
             results = model.power(u=ab,
@@ -413,7 +413,7 @@ class MATRIX:
                                   use_threads=cores,
                                   transit_template=transit_template
                                   )
-            SNR = results.snr
+            snr = results.snr
             if results.snr >= min_snr:
                 intransit_result = transit_mask(time, results.period, 2 * results.duration, results.T0)
                 time = time[~intransit_result]
@@ -427,10 +427,10 @@ class MATRIX:
                                 1. / 24.))  # check if any epochs matches to within 1 hour
                 #            right_depth   = (np.abs(np.sqrt(1.-results.depth)*rstar - rplanet)/rplanet < 0.05) #check if the depth matches
                 if right_period and right_epoch:
-                    FOUND_SIGNAL = True
+                    found_signal = True
                     break
             run = run + 1
-        return FOUND_SIGNAL, results.snr, results.SDE, run
+        return found_signal, results.snr, results.SDE, run
 
     def __equal(self, a, b, tolerance=0.01):
         return np.abs(a - b) < tolerance
