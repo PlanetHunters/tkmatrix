@@ -41,9 +41,7 @@ if __name__ == '__main__':
     user_properties = yaml.load(open(args.properties), yaml.SafeLoader)
     preserve = args.preserve
     matrix_user_properties.update(user_properties)
-
     matrix_user_properties["CPUS"] = get_cpus()
-
     ir = MATRIX(matrix_user_properties["TARGET"], matrix_user_properties["SECTORS"], args.dir, args.preserve)
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
                            matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEP_PERIOD"],
@@ -51,7 +49,6 @@ if __name__ == '__main__':
                            matrix_user_properties["STEP_RADIUS"], matrix_user_properties["EXPOSURE_TIME"])
     ir.recovery(matrix_user_properties["CPUS"], inject_dir, matrix_user_properties["SNR_THRESHOLD"],
                 matrix_user_properties["SHERLOCK_DEEPNESS"], matrix_user_properties["KNOWN_TRANSITS"],
-                matrix_user_properties["DETREND_WS"])
-
+                matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"])
     # print the execution time:
     print("Execution time: " + str(datetime.datetime.now() - start_time))
