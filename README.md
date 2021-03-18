@@ -5,6 +5,13 @@
 # MATRIX ToolKit
 ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 
+## Main Developers
+Active: <i>[M. Dévora Pajares](https://github.com/martindevora), [F.J. Pozuelos](https://github.com/franpoz), 
+[L. Cerdeño](https://github.com/LuisCerdenoMota) </i> 
+
+## Additional contributors 
+<i>A. Thuillier</i>
+
 ## Installation
 `python3 -m pip install tkmatrix`
 
