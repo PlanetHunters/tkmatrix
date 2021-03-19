@@ -7,7 +7,9 @@ ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 
 ## Main Developers
 [M. Dévora Pajares](https://github.com/martindevora)
+
 [F.J. Pozuelos](https://github.com/franpoz)
+
 [L. Cerdeño Mota](https://github.com/LuisCerdenoMota) 
 
 ## Additional contributors 
