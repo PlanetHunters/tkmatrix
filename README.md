@@ -6,16 +6,21 @@
 ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 
 ## Main Developers
-Active: <i>[M. Dévora Pajares](https://github.com/martindevora), [F.J. Pozuelos](https://github.com/franpoz), 
-[L. Cerdeño Mota](https://github.com/LuisCerdenoMota) </i> 
+[M. Dévora Pajares](https://github.com/martindevora)
+[F.J. Pozuelos](https://github.com/franpoz)
+[L. Cerdeño Mota](https://github.com/LuisCerdenoMota) 
 
 ## Additional contributors 
 <i>A. Thuillier</i>
 
 ## Installation
+Supported Python versions: 3.6, 3.7, 3.8. Install with:
+
 `python3 -m pip install tkmatrix`
 
 ## Tests
+We use [tox](https://tox.readthedocs.io) to test MATRIX under all the supported Python versions. Usage:
+
 `tox`
 
 ## Examples
