@@ -14,7 +14,7 @@ import lightkurve as lk
 import os
 import re
 import pandas as pd
-#import shutil
+import shutil
 
 
 class MATRIX:
@@ -287,8 +287,11 @@ class MATRIX:
                         print(e)
                         print("File not valid: " + file)
 
-        #if self.preserve != True:
-        #    shutil.rmtree(inject_dir)
+        # If preserve parameter is not True, we remove inject files:
+        if not self.preserve:
+            for file in os.listdir(inject_dir):
+                if file.endswith(".csv") and file.startswith("P"):
+                    os.remove(inject_dir + file)
 
     def __make_model(self, time, flux, flux_err, rstar, mstar, epoch, period, rplanet,exposure_time):
         P1 = period * u.day
@@ -340,6 +343,7 @@ class MATRIX:
         for mask in transit_masks:
             intransit = transit_mask(time, mask["P"], 2 * mask["D"], mask["T0"])
             result[intransit] = True
+
         return result
 
     def plot_results(self, inject_dir, step_period, step_radius, phases, plot_step_period=1, plot_step_radius=1):
