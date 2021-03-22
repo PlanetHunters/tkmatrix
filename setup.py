@@ -8,7 +8,7 @@ setuptools.setup(
     version=version,
     author="M. Dévora-Pajares & F.J. Pozuelos",
     author_email="mdevorapajares@protonmail.com",
-    description="ToolKit for Multi-phase Augmented Transits Recovery from Injected eXoplanets",
+    description="ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/martindevora/tkmatrix",
