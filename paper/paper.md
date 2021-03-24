@@ -15,7 +15,10 @@ authors:
     orcid: 0000-0003-1572-7707
     affiliation: "2, 3" # (Multiple affiliations must be quoted)
   - name: Luis Cerdeño Mota
+    orcid:
+  - name: Antoine Thuillier
     orcid: 
+    affiliation: 2 # (Multiple affiliations must be quoted)
 affiliations:
  - name: Dpto. Física Teórica y del Cosmos, Universidad de Granada, 18071, Granada, Spain
    index: 1

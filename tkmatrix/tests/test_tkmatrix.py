@@ -33,6 +33,17 @@ class TestsMatrix(unittest.TestCase):
             self.assertAlmostEqual(0.284, matrix.rstar_max.value, 3)
             self.assertEquals(".", matrix.dir)
             matrix.recovery(multiprocessing.cpu_count() - 1, inject_dir, 5, 0)
+            self.assertEquals(2, len(os.listdir(inject_dir)))
+        finally:
+            if inject_dir is not None:
+                shutil.rmtree(inject_dir, ignore_errors=True)
+
+    def test_inject_one_preserve(self):
+        matrix = MATRIX("TIC 220513363", [1], ".", True)
+        inject_dir = None
+        try:
+            inject_dir = matrix.inject(1, 5, 5, 0.1, 3, 3, 0.1, 120)
+            matrix.recovery(multiprocessing.cpu_count() - 1, inject_dir, 5, 0)
             self.assertEquals(3, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
@@ -44,8 +55,8 @@ class TestsMatrix(unittest.TestCase):
         try:
             inject_dir = matrix.inject(1, 5, 5.1, 0.1, 3, 3.1, 0.1, 120)
             self.assertEquals(4, len(os.listdir(inject_dir)))
-            matrix.recovery(multiprocessing.cpu_count() - 1, inject_dir, 0, 5, None, 0.5)
-            self.assertEquals(6, len(os.listdir(inject_dir)))
+            matrix.recovery(multiprocessing.cpu_count() - 1, inject_dir, 5, 0, None, 0.5)
+            self.assertEquals(2, len(os.listdir(inject_dir)))
             with open(inject_dir + "/a_tls_report.csv") as f:
                 for i, l in enumerate(f):
                     pass
@@ -54,18 +65,18 @@ class TestsMatrix(unittest.TestCase):
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
 
-    def test_inject_eight_multiphase(self):
+    def test_inject_multiphase(self):
         matrix = MATRIX("TIC 220513363", [1], ".")
         inject_dir = None
         try:
-            inject_dir = matrix.inject(2, 5, 5.1, 0.1, 3, 3.1, 0.1, 120)
-            self.assertEquals(8, len(os.listdir(inject_dir)))
+            inject_dir = matrix.inject(2, 5, 5, 0.1, 3, 3, 0.1, 120)
+            self.assertEquals(2, len(os.listdir(inject_dir)))
             matrix.recovery(multiprocessing.cpu_count() - 1, inject_dir, 5, 0, None, 0.5)
-            self.assertEquals(10, len(os.listdir(inject_dir)))
+            self.assertEquals(2, len(os.listdir(inject_dir)))
             with open(inject_dir + "/a_tls_report.csv") as f:
                 for i, l in enumerate(f):
                     pass
-            self.assertEquals(9, i + 1)
+            self.assertEquals(2, i)
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
@@ -88,6 +99,7 @@ class TestsMatrix(unittest.TestCase):
 
     def test_inject_inputs(self):
         matrix = MATRIX("TIC 305048087", [2], ".")
+        inject_dir = None
         with(pytest.raises(AssertionError)):
             inject_dir = matrix.inject(2, 5, 5.1, 0.1, 3, 3.1, 0.1, None)
         if inject_dir is not None:

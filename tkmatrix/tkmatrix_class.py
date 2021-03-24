@@ -2,9 +2,9 @@ import traceback
 import numpy as np
 import ellc
 import matplotlib.pyplot as plt
-from tkmatrix.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
-from tkmatrix.objectinfo.preparer.MissionLightcurveBuilder import MissionLightcurveBuilder
-from tkmatrix.objectinfo.MissionObjectInfo import MissionObjectInfo
+from lcbuilder.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
+from lcbuilder.objectinfo.preparer.MissionLightcurveBuilder import MissionLightcurveBuilder
+from lcbuilder.objectinfo.MissionObjectInfo import MissionObjectInfo
 import wotan
 from transitleastsquares import transitleastsquares
 from transitleastsquares import transit_mask, cleaned_array
@@ -14,7 +14,6 @@ import lightkurve as lk
 import os
 import re
 import pandas as pd
-import shutil
 
 
 class MATRIX:
@@ -427,8 +426,7 @@ class MATRIX:
                 right_epoch = False
                 for tt in results.transit_times:
                     for i in range(-5, 5):
-                        right_epoch = right_epoch or (np.abs(tt - epoch + i * period) < (
-                                1. / 24.))  # check if any epochs matches to within 1 hour
+                        right_epoch = right_epoch or (np.abs(tt - epoch + i * period) < (1. / 24.))
                 #            right_depth   = (np.abs(np.sqrt(1.-results.depth)*rstar - rplanet)/rplanet < 0.05) #check if the depth matches
                 if right_period and right_epoch:
                     found_signal = True
