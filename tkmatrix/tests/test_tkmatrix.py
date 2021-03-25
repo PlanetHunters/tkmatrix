@@ -4,6 +4,7 @@ import shutil
 import unittest
 import astropy.units as u
 import pytest
+from lcbuilder.star.starinfo import StarInfo
 from transitleastsquares import transitleastsquares
 
 from tkmatrix.tkmatrix_class import MATRIX
@@ -127,6 +128,41 @@ class TestsMatrix(unittest.TestCase):
                 shutil.rmtree(inject_dir1)
             if inject_dir2 is not None:
                 shutil.rmtree(inject_dir2)
+
+    def test_star_info(self):
+        star_info = StarInfo("TIC 220513363", (0.2, 0.5), 2000, 1.2, None, 0.5, 0.1, 0.2, 0.7, 0.15, 0.05, None, None)
+        matrix = MATRIX("TIC 220513363", [1], ".", star_info)
+        inject_dir = None
+        try:
+            inject_dir = matrix.inject(1, 5, 5, 0.1, 3, 3, 0.1, 120)
+            self.assertEquals(1, len(os.listdir(inject_dir)))
+            self.assertEquals((0.2, 0.5), matrix.star_info.ld_coefficients)
+            self.assertEquals(2000, matrix.star_info.teff)
+            self.assertAlmostEqual(0.7, matrix.star_info.mass)
+            self.assertAlmostEqual(0.55, matrix.star_info.mass_min)
+            self.assertAlmostEqual(0.75, matrix.star_info.mass_max)
+            self.assertAlmostEqual(0.5, matrix.star_info.radius)
+            self.assertAlmostEqual(0.4, matrix.star_info.radius_min)
+            self.assertAlmostEqual(0.7, matrix.star_info.radius_max)
+        finally:
+            if inject_dir is not None:
+                shutil.rmtree(inject_dir, ignore_errors=True)
+        matrix = MATRIX("TIC 220513363", [1], ".")
+        inject_dir = None
+        try:
+            inject_dir = matrix.inject(1, 5, 5, 0.1, 3, 3, 0.1, 120)
+            self.assertEquals(1, len(os.listdir(inject_dir)))
+            self.assertEquals((0.1258, 0.235), matrix.star_info.ld_coefficients)
+            self.assertEquals(31000.0, matrix.star_info.teff)
+            self.assertAlmostEqual(0.47, matrix.star_info.mass)
+            self.assertAlmostEqual(0.44, matrix.star_info.mass_min)
+            self.assertAlmostEqual(0.5, matrix.star_info.mass_max)
+            self.assertAlmostEqual(0.18, matrix.star_info.radius)
+            self.assertAlmostEqual(0.076, matrix.star_info.radius_min)
+            self.assertAlmostEqual(0.284, matrix.star_info.radius_max)
+        finally:
+            if inject_dir is not None:
+                shutil.rmtree(inject_dir, ignore_errors=True)
 
 if __name__ == '__main__':
     unittest.main()
