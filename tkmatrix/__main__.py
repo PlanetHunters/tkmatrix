@@ -3,6 +3,9 @@ import os
 import yaml
 from argparse import ArgumentParser
 from os import path
+
+from lcbuilder.star.starinfo import StarInfo
+
 from tkmatrix.tkmatrix_class import MATRIX
 import datetime
 
@@ -19,6 +22,24 @@ def get_cpus():
         final_cpus = matrix_user_properties["CPUS"]
 
     return final_cpus
+
+def get_star_info(properties, id):
+    input_star_info = None
+    if properties["STAR"] is not None and properties["STAR"][id] is not None:
+        star_properties = properties["STAR"][id]
+        input_star_info = StarInfo(id, tuple(star_properties["LD_COEFFICIENTS"]) if "LD_COEFFICIENTS" in star_properties else None,
+                             star_properties["TEFF"] if "TEFF" in star_properties else None,
+                             star_properties["LUM"] if "LUM" in star_properties else None,
+                             star_properties["LOGG"] if "LOGG" in star_properties else None,
+                             star_properties["RADIUS"] if "RADIUS" in star_properties else None,
+                             star_properties["RADIUS_LOWER_ERROR"] if "RADIUS_LOWER_ERROR" in star_properties else None,
+                             star_properties["RADIUS_UPPER_ERROR"] if "RADIUS_UPPER_ERROR" in star_properties else None,
+                             star_properties["MASS"] if "MASS" in star_properties else None,
+                             star_properties["MASS_LOWER_ERROR"] if "MASS_LOWER_ERROR" in star_properties else None,
+                             star_properties["MASS_UPPER_ERROR"] if "MASS_UPPER_ERROR" in star_properties else None,
+                             star_properties["RA"] if "RA" in star_properties else None,
+                             star_properties["DEC"] if "DEC" in star_properties else None)
+    return input_star_info
 
 
 if __name__ == '__main__':
@@ -42,7 +63,9 @@ if __name__ == '__main__':
     preserve = args.preserve
     matrix_user_properties.update(user_properties)
     matrix_user_properties["CPUS"] = get_cpus()
-    ir = MATRIX(matrix_user_properties["TARGET"], matrix_user_properties["SECTORS"], args.dir, args.preserve)
+    target = matrix_user_properties["TARGET"]
+    star_info = get_star_info(matrix_user_properties, target)
+    ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, star_info, args.preserve)
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
                            matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEP_PERIOD"],
                            matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
