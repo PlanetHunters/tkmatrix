@@ -22,19 +22,22 @@ class MATRIX:
     """
     object_info = None
 
-    def __init__(self, target, sectors, dir, preserve=False):
+    def __init__(self, target, sectors, dir, star_info=None, preserve=False):
         assert target is not None and isinstance(target, str)
         assert sectors is not None and (sectors == 'all' or isinstance(sectors, list))
         self.id = target
         self.dir = dir
         self.sectors = sectors
+        self.star_info = star_info
         self.preserve = preserve
 
     def retrieve_object_data(self):
         self.object_info = MissionObjectInfo(self.id, self.sectors)
         lightcurve_builder = MissionLightcurveBuilder()
-        self.lc, self.lc_data, self.star_info, self.transits_min_count, self.sectors, self.quarters = \
+        self.lc, self.lc_data, star_info, self.transits_min_count, self.sectors, self.quarters = \
             lightcurve_builder.build(self.object_info, None)
+        if self.star_info is None:
+            self.star_info = star_info
         self.ab = self.star_info.ld_coefficients
         self.mass = self.star_info.mass
         self.massmin = self.star_info.mass_min
