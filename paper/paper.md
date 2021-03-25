@@ -19,12 +19,14 @@ authors:
   - name: Antoine Thuillier
     orcid: 
     affiliation: 2 # (Multiple affiliations must be quoted)
+  - name: Valérie Van Grootel
+    affiliation: 2
 affiliations:
  - name: Dpto. Física Teórica y del Cosmos, Universidad de Granada, 18071, Granada, Spain
    index: 1
- - name: Space Sciences, Technologies and Astrophysics Research (STAR) Institute, Universit\'e de Li\`ege, All\'ee du 6 Ao\^ut 19C, B-4000 Li\`ege, Belgium
+ - name: Space Sciences, Technologies and Astrophysics Research (STAR) Institute, Universitè de Liège, Allée du 6 Août 19C, B-4000 Liège, Belgium
    index: 2
- - name: Astrobiology Research Unit, Universit\'e de Li\`ege, All\'ee du 6 Ao\^ut 19C, B-4000 Li\`ege, Belgium
+ - name: Astrobiology Research Unit, Universitè de Liège, Allée du 6 Août 19C, B-4000 Liège, Belgium
    index: 3
 date: 22 January 2021
 bibliography: paper.bib
@@ -42,8 +44,8 @@ half of the known exoplanets have been discovered thanks to the usage of the tra
 on the measurement of the stellar light flux drops caused by a planet passing through the visual line
 between the star and the observer. So far, several space-based missions have already been launched
 as COROT, Kepler and TESS, producing huge amounts of publicly available data and growing communities
-of scientists looking forward to them. Every star observation shows its own systematics together
-with the common expected systematics due to its own characteristics and its nearby field. Therefore,
+of scientists looking forward to them. Every star observation shows its own systematics, together
+with the common expected ones, due to its own characteristics and its nearby field. Therefore,
 it has been a common task for scientists to create exoplanet transiting models for each analyzed star
 and try their search tools on them to define their detection limits. As far as we know there is no
 public software to perform such a process and thus, we developed MATRIX (Multi-phAse Transits
