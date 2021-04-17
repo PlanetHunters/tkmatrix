@@ -4,14 +4,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 version = "0.1.9"
 setuptools.setup(
-    name="tkmatrix", # Replace with your own username
+    name="tkmatrix",
     version=version,
     author="M. Dévora-Pajares & F.J. Pozuelos",
     author_email="mdevorapajares@protonmail.com",
     description="ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/martindevora/tkmatrix",
+    url="https://github.com/PlanetHunters/tkmatrix",
     packages=setuptools.find_packages(),
     include_package_data=True,
     classifiers=[
@@ -29,7 +29,7 @@ setuptools.setup(
                         "corner==2.1.0",
                         "cython==0.29.21",
                         "ellc==1.8.5",
-                        "lcbuilder==0.1.1",
+                        "lcbuilder==0.1.9",
                         "matplotlib==3.3.4",
                         "mock==4.0.3",
                         'numba>=0.53.0rc1',

@@ -2,10 +2,13 @@ import traceback
 import numpy as np
 import ellc
 import matplotlib.pyplot as plt
+from lcbuilder.lcbuilder_class import LcBuilder
+from lcbuilder.objectinfo.InputObjectInfo import InputObjectInfo
 from lcbuilder.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
 from lcbuilder.objectinfo.preparer.MissionLightcurveBuilder import MissionLightcurveBuilder
 from lcbuilder.objectinfo.MissionObjectInfo import MissionObjectInfo
 import wotan
+from matplotlib.ticker import FormatStrFormatter
 from transitleastsquares import transitleastsquares
 from transitleastsquares import transit_mask, cleaned_array
 import astropy.constants as ac
@@ -22,20 +25,24 @@ class MATRIX:
     """
     object_info = None
 
-    def __init__(self, target, sectors, dir, star_info=None, preserve=False):
+    def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None, exposure_time=None):
         assert target is not None and isinstance(target, str)
         assert sectors is not None and (sectors == 'all' or isinstance(sectors, list))
+        assert exposure_time is not None and isinstance(exposure_time, (int, float))
         self.id = target
         self.dir = dir
         self.sectors = sectors
         self.star_info = star_info
         self.preserve = preserve
+        self.file = file
+        self.exposure_time = exposure_time
 
     def retrieve_object_data(self):
-        self.object_info = MissionObjectInfo(self.id, self.sectors)
-        lightcurve_builder = MissionLightcurveBuilder()
+        lcbuilder = LcBuilder()
+        self.object_info = lcbuilder.build_object_info(self.id, None, self.sectors, self.file, self.exposure_time, None,
+                                                       None, None, self.star_info, None)
         self.lc, self.lc_data, star_info, self.transits_min_count, self.sectors, self.quarters = \
-            lightcurve_builder.build(self.object_info, None)
+            lcbuilder.build(self.object_info, None)
         if self.star_info is None:
             self.star_info = star_info
         self.ab = self.star_info.ld_coefficients
@@ -76,15 +83,14 @@ class MATRIX:
 
         return inject_dir
 
-    def inject(self, phases, min_period, max_period, step_period, min_radius, max_radius, step_radius, exposure_time):
-        assert phases is not None and isinstance(phases, int)
+    def inject(self, phases, min_period, max_period, step_period, min_radius, max_radius, step_radius):
+        assert phases is not None and isinstance(phases, int) and phases > 0
         assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
         assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
         assert step_period is not None and isinstance(step_period, (int, float)) and step_period > 0
         assert min_radius is not None and isinstance(min_radius, (int, float)) and min_radius > 0
         assert max_radius is not None and isinstance(max_radius, (int, float)) and max_radius > 0
         assert step_radius is not None and isinstance(step_radius, (int, float)) and step_radius > 0
-        assert exposure_time is not None and isinstance(exposure_time, (int, float)) and exposure_time > 0
         self.retrieve_object_data()
         lc_new = lk.LightCurve(time=self.lc.time, flux=self.lc.flux, flux_err=self.lc.flux_err)
         clean = lc_new.remove_outliers(sigma_lower=float('inf'), sigma_upper=3)
@@ -100,7 +106,8 @@ class MATRIX:
                     print('\n')
                     print('P = ' + str(period) + ' days, Rp = ' + str(rplanet) + ", T0 = " + str(t0))
                     time_model, flux_model, flux_err_model = self.__make_model(time, flux0, flux_err, self.rstar,
-                                                                               self.mstar, t0, period, rplanet, exposure_time)
+                                                                               self.mstar, t0, period, rplanet,
+                                                                               self.exposure_time)
                     file_name = os.path.join(inject_dir + '/P' + str(period) + '_R' + str(rplanet.value) + '_' + str(t0) +
                                              '.csv')
                     lc_df = pd.DataFrame(columns=['#time', 'flux', 'flux_err'])
@@ -170,14 +177,7 @@ class MATRIX:
                     print("File not valid: " + file)
         tls_report_df = pd.read_csv(inject_dir + "a_tls_report.csv", float_precision='round_trip', sep=',',
                                     usecols=['period', 'radius', 'epoch', 'found', 'snr', 'sde', 'run'])
-        period_count = tls_report_df["period"].nunique()
-        radius_count = tls_report_df["radius"].nunique()
-        phases = len(tls_report_df) / (period_count * radius_count)
-        period_count = period_count if period_count == 1 else period_count - 1
-        radius_count = radius_count if radius_count == 1 else radius_count - 1
-        step_period = (tls_report_df["period"].max() - tls_report_df["period"].min()) / period_count
-        step_radius = (tls_report_df["radius"].max() - tls_report_df["radius"].min()) / radius_count
-        self.plot_results(inject_dir, step_period, step_radius, phases)
+        MATRIX.plot_results(self.id, inject_dir)
         if sherlock_samples > 0:
             from sherlockpipe import sherlock
             from sherlockpipe.scoring.QuorumSnrBorderCorrectedSignalSelector import QuorumSnrBorderCorrectedSignalSelector
@@ -348,47 +348,48 @@ class MATRIX:
 
         return result
 
-    def plot_results(self, inject_dir, step_period, step_radius, phases, plot_step_period=1, plot_step_radius=1):
-        self.object_info = MissionObjectInfo(self.id, self.sectors)
-        df = pd.read_csv(inject_dir + "a_tls_report.csv")
+    @staticmethod
+    def plot_results(object_id, inject_dir, binning=1, xticks=None, yticks=None):
+        df = pd.read_csv(inject_dir + '/a_tls_report.csv', float_precision='round_trip', sep=',',
+                         usecols=['period', 'radius', 'found'])
         min_period = df["period"].min()
         max_period = df["period"].max()
         min_rad = df["radius"].min()
         max_rad = df["radius"].max()
+        phases = len(df[df["period"] == df["period"].min()][df["radius"] == df["radius"].min()])
+        step_period = (max_period - min_period) / (len(df["period"].unique()) - 1)
+        step_radius = (max_rad - min_rad) / (len(df["radius"].unique()) - 1)
+        phases_str = "phase" if phases == 1 else "phases"
+        step_period = step_period * binning
+        step_radius = step_radius * binning
         if step_period <= 0:
             step_period = 0.1
         if step_radius <= 0:
             step_radius = 0.1
-        period_grid = np.arange(min_period, max_period + 0.01, step_period)
-        radius_grid = np.arange(min_rad, max_rad + 0.01, step_radius)
-        result = np.zeros((len(period_grid), len(radius_grid)))
-        for i in period_grid:
-            ipos = int(round((i - min_period) * 1 / step_period))
-            for j in radius_grid:
-                jpos = int(round((j - min_rad) * 1 / step_radius))
-                sel_df = df[self.__equal(df["period"], i)]
-                sel_df = sel_df[self.__equal(sel_df["radius"], j)]
-                found_count = len(sel_df[sel_df["found"]])
-                result[ipos][jpos] = found_count / phases * 100
-        result = np.transpose(result)
-        fig, ax = plt.subplots()
-        im = ax.imshow(result)
-        ax.set_xticks(np.arange(len(period_grid), step=plot_step_period))
-        ax.set_yticks(np.arange(len(radius_grid), step=plot_step_radius))
-        ax.set_xticklabels(np.round(period_grid[0::plot_step_period], 2))
-        ax.set_yticklabels(np.round(radius_grid[0::plot_step_radius], 2))
-        ax.set_xlabel("Injected period (days)")
-        ax.set_ylabel("Injected radius (" + r'$R_\oplus$ ' + ")")
-        plt.setp(ax.get_xticklabels(), rotation=30, ha="right",
-                 rotation_mode="anchor")
-        cbar = ax.figure.colorbar(im, ax=ax, shrink=len(period_grid) / len(radius_grid))
-        cbar.ax.set_ylabel("Recovery rate (%)", rotation=-90, va="bottom")
-        # Rotate the tick labels and set their alignment.
-        plt.setp(ax.get_xticklabels(), rotation=90, ha="right", rotation_mode="anchor")
-        plt.gca().invert_yaxis()
-        ax.set_title(self.id + " - P/R recovery")
-        fig.tight_layout()
-        plt.savefig(inject_dir + "a_tls_report.png")
+        period_grid = np.arange(min_period, max_period + step_period / binning + 0.01, step_period)
+        radius_grid = np.arange(min_rad, max_rad + 0.01 + step_radius / binning, step_radius)
+        f = len(period_grid) / len(radius_grid)
+        bins = [period_grid, radius_grid]
+        h1, x, y = np.histogram2d(df['period'][df['found'] == 1], df['radius'][df['found'] == 1], bins=bins)
+        h2, x, y = np.histogram2d(df['period'][df['found'] == 0], df['radius'][df['found'] == 0], bins=bins)
+        normed_hist = (100. * h1 / (h1 + h2))
+        fig, ax = plt.subplots(figsize=(2.7 * 5, 5))
+        im = plt.imshow(normed_hist.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), interpolation='none',
+                        aspect='auto', cmap='viridis', vmin=0, vmax=100, rasterized=True)
+        plt.colorbar(im, label='Recovery rate (%)')
+        plt.xlabel('Injected period (days)')
+        plt.ylabel(r'Injected radius (R$_\oplus$)')
+        ax.set_title(object_id + " - P/R recovery (" + str(phases) + " " + phases_str + ")")
+        if xticks is not None:
+            plt.xticks(xticks)
+        else:
+            period_ticks_decimals = MATRIX.num_of_zeros(max_period - min_period) + 1
+            plot_bins = 10 if 10 < len(period_grid) else len(period_grid)
+            plt.locator_params(axis="x", nbins=plot_bins)
+            ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
+        if yticks is not None:
+            plt.xticks(yticks)
+        plt.savefig('inj-rec.pdf', bbox_inches='tight', dpi=200)
         plt.close()
 
     def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
@@ -439,6 +440,11 @@ class MATRIX:
 
     def __equal(self, a, b, tolerance=0.01):
         return np.abs(a - b) < tolerance
+
+    @staticmethod
+    def num_of_zeros(n):
+        s = '{:.16f}'.format(n).split('.')[1]
+        return len(s) - len(s.lstrip('0'))
 
     def __is_multiple_of(self, a, b, tolerance=0.05):
         a = np.float(a)

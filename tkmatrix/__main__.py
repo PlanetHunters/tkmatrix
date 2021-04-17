@@ -64,12 +64,14 @@ if __name__ == '__main__':
     matrix_user_properties.update(user_properties)
     matrix_user_properties["CPUS"] = get_cpus()
     target = matrix_user_properties["TARGET"]
+    file = matrix_user_properties["FILE"]
     star_info = get_star_info(matrix_user_properties, target)
-    ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, star_info, args.preserve)
+    ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, args.preserve, star_info, file,
+                matrix_user_properties["EXPOSURE_TIME"])
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
                            matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEP_PERIOD"],
                            matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
-                           matrix_user_properties["STEP_RADIUS"], matrix_user_properties["EXPOSURE_TIME"])
+                           matrix_user_properties["STEP_RADIUS"])
     ir.recovery(matrix_user_properties["CPUS"], inject_dir, matrix_user_properties["SNR_THRESHOLD"],
                 matrix_user_properties["SHERLOCK_DEEPNESS"], matrix_user_properties["KNOWN_TRANSITS"],
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"])
