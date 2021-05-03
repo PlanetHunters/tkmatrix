@@ -14,13 +14,13 @@ authors:
   - name: Francisco J. Pozuelos(*)
     orcid: 0000-0003-1572-7707
     affiliation: "2, 3" # (Multiple affiliations must be quoted)
-  - name: Luis Cerdeño Mota
-    orcid:
   - name: Antoine Thuillier
     orcid: 
     affiliation: 2 # (Multiple affiliations must be quoted)
   - name: Valérie Van Grootel
     affiliation: 2
+  - name: Luis Cerdeño Mota
+    orcid:
 affiliations:
  - name: Dpto. Física Teórica y del Cosmos, Universidad de Granada, 18071, Granada, Spain
    index: 1
@@ -47,10 +47,9 @@ as COROT, Kepler and TESS, producing huge amounts of publicly available data and
 of scientists looking forward to them. Every star observation shows its own systematics, together
 with the common expected ones, due to its own characteristics and its nearby field. Therefore,
 it has been a common task for scientists to create exoplanet transiting models for each analyzed star
-and try their search tools on them to define their detection limits. As far as we know there is no
-public software to perform such a process and thus, we developed MATRIX (Multi-phAse Transits
-Recovery of Injected eXoplanets) to help the astronomers assess the recovery rates of exoplanet
-transits around a given star.
+and try their search tools on them to define their detection limits. We present an extension to the 
+typical model injection and recovery scenarios by adding a new dimension to the analysis, establishing
+in most of the cases more confident detection thresholds.
 
 # 1. MATRIX
 The main data product that astronomers use to analyze and search for transiting exoplanets are the light
@@ -90,12 +89,48 @@ detection limit (when transiting exoplanet models start to be difficult to be de
 the detectability of a model with one sample for a given period and radius pair. But there is also one more 
 reason that could reverse completely the results of a single-phase inject and recovery scenario: the epoch
 of the modeled transiting exoplanets becomes crucial. In case the selected epoch makes the transit events 
-appear under noisy regions, they will become much more difficult to detect. This situation is very complicated
+appear under noisy regions or data gaps, they will become much more difficult to detect. This situation is very complicated
 to correct and therefore, we have added a new dimension to the inject and recovery scenarios: a grid of epochs
-for each period and radius cell.
+for each period and radius cell. By setting the `PHASES` parameter to any value greater than `1` we will be running
+an injection and recovery analysis on as many different epochs for each period and radius within the grid as phases
+we determined.
+
+HERE A PICTURE OF Single-phase VS Multi-Phase
+
+# Supported inputs for targets and tools
+We have included several kind of inputs for `MATRIX`. Missions like TESS provide short and long cadence data and their study
+differ in several points. Thus, the injection and recovery task might be useful for each of them separately. Sometimes the
+astronomer will be provided with a file containing the target light curve and sometimes the astronomer might be
+interested in specifying the target star properties manually instead of loading those from the online catalogues. Finally,
+the scientist could not only want to use the `MATRIX` built-in search method but also use his cleaning and search
+algorithms to execute an injection and recovery process according to his real search procedures instead of using the
+ones we adopted as default. We explain some additions we included in our new tool to support all of these possibilities.
+
+## Missions and exposure times
+Support for Kepler, K2 and TESS missions online data is included. By only specifying the field `TARGET` with the appropiate
+target name (e.g. KIC 1234, EPIC 1234 or TIC 1234 for Kepler, K2 or TESS targets). By default, the short cadence exposure time
+will be selected (60 seconds for Kepler and K2, 120 seconds for TESS) but it can be switched to the long cadence by changing
+the value of the `EXPOSURE_TIME` parameter (long cadence values are 1800 seconds for the three missions).
+
+## Star properties
+The target star properties can be loaded automatically either from the online catalogues when the `TARGET` name is specified or
+providing a `STAR_INFO` root property containing child properties for each star property like mass, radius, etc.
+
+## File input
+In addition to setting the target to be searched for, a `FILE` parameter can be provisioned pointing to the absolute file path
+to be loaded in `csv` format. This way, the star properties will be downloaded from the online catalogues and the light curve
+used to inject the models will be loaded from disk. If no `TARGET` value is provided, the `STAR_INFO` property needs
+to be included in order to be able to generate a realistic model according to the expected host star.
+
+## Rotation signal clean-up
+## Grid mode
+## Custom algorithms
+
+## Missions and inputs
 
 # 4. Performance
-Comparison between mono-phase and multi-phase search for some target.
+COMPARISON BETWEEN SINGLE vs MULTI FOR TWO TARGETS
+
 
 
 # 5. Future implementations  
