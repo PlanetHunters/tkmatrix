@@ -21,6 +21,8 @@ authors:
     affiliation: 2
   - name: Luis Cerdeño Mota
     orcid:
+  - name: Juan C. Suarez
+    affiliation: 1
 affiliations:
  - name: Dpto. Física Teórica y del Cosmos, Universidad de Granada, 18071, Granada, Spain
    index: 1
@@ -28,6 +30,7 @@ affiliations:
    index: 2
  - name: Astrobiology Research Unit, Universitè de Liège, Allée du 6 Août 19C, B-4000 Liège, Belgium
    index: 3
+   
 date: 22 January 2021
 bibliography: paper.bib
 
@@ -129,15 +132,25 @@ to `linear` or `log`) In case `linear` is selected, the grid will be generated b
 points to be hold by the respective grid.
 
 ## Rotation signal clean-up
-## Grid mode
-## Custom algorithms
+Among every kind of star that we can find, a typical case is a fast-rotator. This stars show a light curve with one or more
+remarkable sinusoidal trends with a period from a few hours to several days. In order to search for transit signals within these
+light curves, the astronomer usually needs to use some cleaning technique on them. Therefore, MATRIX adds an optional cleaning
+stage where the scientist can define three parameters: type of algorithm (`DETREND_METHOD` property) and size of the cleaning
+window (`DETREND_WINDOW_SIZE` property).
 
-## Missions and inputs
+HERE A CAPTION OF A FAST ROTATOR SIGNAL BEFORE AND AFTER DETREND
+
+## Custom algorithms
+Maybe the cleaning and search processes implemented in `MATRIX` could not be enough for the astronomer purposes. Therefore, we have
+added the option to override them through the properties. If the scientist wanted to use a different cleaning algorithm and a 
+different search one, he would just need to create new implementations of MatrixCleaningAlgorithm and MatrixSearchAlgorithm 
+classes provided by `MATRIX` and then pass them to the constructor (if running via code) or to the `MATRIX_CLEAN_ALGORITHM`
+and `MATRIX_SEARCH_ALGORITM` properties respectively (if running through the main entrypoint).
 
 # 4. Performance
 COMPARISON BETWEEN SINGLE vs MULTI FOR TWO TARGETS
 SNR AND SDE DATA FOR SHALLOW TRANSITS
-
+COMPARISON BETWEEN MULTI vs MULTI WITH SAVGOL vs MULTI WITH BUTTERWORTH
 
 
 # 5. Future implementations  
