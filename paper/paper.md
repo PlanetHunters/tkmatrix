@@ -72,6 +72,8 @@ user), generate a model of transit injecting it into the original data and store
 light curve in a `csv` file for each case. That is, `MATRIX` will store a set of 
 `PERIOD_GRID_SIZE` x `RADIUS_GRID_SIZE` x `EPOCHS_COUNT` files for the recovery scenario.
 
+HERE A CAPTION WITH THE PROGRAM FLOW
+
 # 2. Scientific cases 
 
 The ``MATRIX ToolKit`` is specially designed to help the scientists develop a robust inject and recovery 
