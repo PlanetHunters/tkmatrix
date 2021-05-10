@@ -46,9 +46,9 @@ The exoplanets detection is a field that has been growing exponentially in the l
 half of the known exoplanets have been discovered thanks to the usage of the transits method. It consists
 on the measurement of the stellar light flux drops caused by a planet passing through the visual line
 between the star and the observer. So far, several space-based missions have already been launched
-as COROT, Kepler and TESS, producing huge amounts of publicly available data and growing communities
+as COROT [@baglin:2006], Kepler [@borucki:2010] and TESS [@ricker:2015], producing huge amounts of publicly available data and growing communities
 of scientists looking forward to them. Every star observation shows its own systematics, together
-with the common expected ones, due to its own characteristics and its nearby field. Therefore,
+with the common ones, due to its own characteristics and its nearby sky field. Therefore,
 it has been a common task for scientists to create exoplanet transiting models for each analyzed star
 and try their search tools on them to define their detection limits. We present an extension to the 
 typical model injection and recovery scenarios by adding a new dimension to the analysis, establishing
@@ -57,17 +57,17 @@ in most of the cases more confident detection thresholds.
 # 1. MATRIX
 The main data product that astronomers use to analyze and search for transiting exoplanets are the light
 curves. These are time series for stellar flux measurements. One of the main methods used to search 
-transiting exoplanets under light curves in the community is the Box Least Squares algorithm. 
+transiting exoplanets under light curves in the community is the Box Least Squares algorithm [@kovacs:2016]. 
 This method folds the light curve with many different periods and tries to fit a squared model of a transit
 to each of the folded time series. The folded signal with less residuals is chosen as the best candidate
 to a transiting exoplanet and its main parameters (period, depth, epoch, duration) are returned. In the last
-two years, a new method appeared named Transit Least Squares, aimed to challenge the BLS results and providing
+two years, a new method appeared named Transit Least Squares [@hippke:2019], aimed to challenge the ``BLS`` results and providing
 better residuals thanks to the usage of realistic transit models for its fit stages instead of a squared one.
-MATRIX will use TLS by default, though the user could switch to BLS if desired.
+``MATRIX`` will use ``TLS`` by default, though the user could switch to ``BLS`` if desired.
 
 The user will provide a grid of periods by selecting the `MAX_PERIOD`, `MIN_PERIOD` and `STEP_PERIOD`, a grid
 of planet radius by selecting `MAX_RADIUS`, `MIN_RADIUS` and `STEP_RADIUS` and the number of epochs to be explored
-for each case. `MATRIX` will initially download the target star light curve (or load a `csv` file specified by the 
+for each case. ``MATRIX`` will initially download the target star light curve (or load a `csv` file specified by the 
 user), generate a model of transit injecting it into the original data and store the resultant modelled
 light curve in a `csv` file for each case. That is, `MATRIX` will store a set of 
 `PERIOD_GRID_SIZE` x `RADIUS_GRID_SIZE` x `EPOCHS_COUNT` files for the recovery scenario.
@@ -82,14 +82,14 @@ the strength of its search tools and pipelines.
 
 ## Single-phase inject and recovery
 The most usual way to study the ability of a given exoplanet search tool of finding new candidates is the
-launch of an inject and recovery process for a grid of periods and planet radius. For this traditional case, 
+launch of an injection and recovery process for a grid of periods and planet radius. For this traditional case, 
 MATRIX provides an easy-to-use execution command which only needs to be fed with a YAML file including the 
 scenario parameters 
 (see [mono-phase.yaml](https://github.com/martindevora/matrix/blob/master/examples/mono-phase.yaml) file.). You
 can appreciate that the `PHASES` property is set to `1`.
 
 ## Multi-phase inject and recovery
-In many cases, a single-phase inject and recovery scenario proves to show poor results near the threshold
+In many cases, a single-phase injection and recovery scenario proves to show poor results near the threshold
 detection limit (when transiting exoplanet models start to be difficult to be detected) because it only assess
 the detectability of a model with one sample for a given period and radius pair. But there is also one more 
 reason that could reverse completely the results of a single-phase inject and recovery scenario: the epoch
@@ -137,8 +137,8 @@ points to be hold by the respective grid.
 Among every kind of star that we can find, a typical case is a fast-rotator. This stars show a light curve with one or more
 remarkable sinusoidal trends with a period from a few hours to several days. In order to search for transit signals within these
 light curves, the astronomer usually needs to use some cleaning technique on them. Therefore, MATRIX adds an optional cleaning
-stage where the scientist can define three parameters: type of algorithm (`DETREND_METHOD` property) and size of the cleaning
-window (`DETREND_WINDOW_SIZE` property).
+stage where the scientist can define three parameters: type of algorithm (`DETREND_PERIOD_METHOD` property) and size of the cleaning
+window (`DETREND_PERIOD` property).
 
 HERE A CAPTION OF A FAST ROTATOR SIGNAL BEFORE AND AFTER DETREND
 
@@ -146,8 +146,8 @@ HERE A CAPTION OF A FAST ROTATOR SIGNAL BEFORE AND AFTER DETREND
 Maybe the cleaning and search processes implemented in `MATRIX` could not be enough for the astronomer purposes. Therefore, we have
 added the option to override them through the properties. If the scientist wanted to use a different cleaning algorithm and a 
 different search one, he would just need to create new implementations of MatrixCleaningAlgorithm and MatrixSearchAlgorithm 
-classes provided by `MATRIX` and then pass them to the constructor (if running via code) or to the `MATRIX_CLEAN_ALGORITHM`
-and `MATRIX_SEARCH_ALGORITM` properties respectively (if running through the main entrypoint).
+classes provided by `MATRIX` and then pass them to the constructor (if running via code) or to the `CUSTOM_CLEAN_ALGORITHM`
+and `CUSTOM_SEARCH_ALGORITM` properties respectively (if running through the main entrypoint).
 
 # 4. Performance
 COMPARISON BETWEEN SINGLE vs MULTI FOR TWO TARGETS
@@ -157,7 +157,7 @@ COMPARISON BETWEEN MULTI vs MULTI WITH SAVGOL vs MULTI WITH BUTTERWORTH
 
 # 5. Future implementations  
 
-- Attention to threshold regions: As we are using squared grids and the inject and recovery scenarios focus
+As we are using squared grids and the inject and recovery scenarios focus
 on finding a detection threshold, some wide regions are usually showing the same detection values (found or
 not found), which might represent a waste of computational power. To mitigate this, we plan to incorporate some
 kind of attention mechanism into our algorithm in such a way that it could only keep testing the scenario only
