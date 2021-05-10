@@ -1,0 +1,10 @@
+from abc import ABC, abstractmethod
+
+
+class CustomCleanAlgorithm(ABC):
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def clean(self, time, flux):
+        pass

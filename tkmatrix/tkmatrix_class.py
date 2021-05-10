@@ -1,3 +1,4 @@
+import logging
 import traceback
 import numpy as np
 import ellc
@@ -117,7 +118,9 @@ class MATRIX:
                     lc_df.to_csv(file_name, index=False)
         return inject_dir
 
-    def recovery(self, cores, inject_dir, snr_threshold=5, sherlock_samples=0, known_transits=None, detrend_ws=0, transit_template='tls'):
+    def recovery(self, cores, inject_dir, snr_threshold=5, sherlock_samples=0, known_transits=None, detrend_ws=0,
+                 transit_template='tls', run_limit=5, detrend_period=False, detrend_period_method='cosine',
+                 custom_clean_algorithm=None, custom_search_algorithm=None):
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert cores is not None
         assert known_transits is None or isinstance(known_transits, list)
@@ -155,16 +158,18 @@ class MATRIX:
                         run = 1
                     else:
                         lc = lk.LightCurve(time=df['#time'], flux=df['flux'], flux_err=df['flux_err'])
-                        clean = lc.remove_nans().remove_outliers(sigma_lower=float('inf'),
+                        clean_lc = lc.remove_nans().remove_outliers(sigma_lower=float('inf'),
                                                                  sigma_upper=3)  # remove outliers over 3sigma
-                        flux = clean.flux.value
-                        time = clean.time.value
+                        flux = clean_lc.flux.value
+                        time = clean_lc.time.value
+                        flux = self.__clean(clean_lc, detrend_period, detrend_period_method, custom_clean_algorithm)
                         intransit = self.transit_masks(known_transits, time)
-                        found, snr, sde, run = self.__tls_search(time, flux, self.radius, self.radiusmin,
-                                                                 self.radiusmax, self.mass, self.massmin,
-                                                                 self.massmax, self.ab, intransit, epoch, period, 0.5,
-                                                                 time[len(time) - 1] - time[0], snr_threshold, cores,
-                                                                 transit_template, detrend_ws, self.transits_min_count)
+                        found, snr, sde, run = self.__search(time, flux, self.radius, self.radiusmin,
+                                                             self.radiusmax, self.mass, self.massmin,
+                                                             self.massmax, self.ab, intransit, epoch, period, 0.5,
+                                                             time[len(time) - 1] - time[0], snr_threshold, cores,
+                                                             transit_template, detrend_ws, self.transits_min_count,
+                                                             run_limit, custom_search_algorithm)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run}
                     reports_df = reports_df.append(new_report, ignore_index=True)
@@ -348,6 +353,32 @@ class MATRIX:
 
         return result
 
+    def __clean(self, lc, detrend_period, detrend_period_method, custom_clean_algorithm):
+        clean_flux = lc.flux.value
+        time = lc.time.value
+        if custom_clean_algorithm is not None:
+            clean_flux = custom_clean_algorithm.clean(time, clean_flux)
+        elif detrend_period:
+            periodogram = lc.to_periodogram(minimum_period=0.05, maximum_period=15, oversample_factor=10)
+            ws = self.__calculate_max_significant_period(lc, periodogram)
+            clean_flux = wotan.flatten(time, clean_flux, window_length=ws, return_trend=False,
+                                       method=detrend_period_method, break_tolerance=0.5)
+        return clean_flux
+
+    def __calculate_max_significant_period(self, lc, periodogram):
+        #max_accepted_period = (lc.time[len(lc.time) - 1] - lc.time[0]) / 4
+        max_accepted_period = np.float64(10)
+        # TODO related to https://github.com/franpoz/SHERLOCK/issues/29 check whether this fits better
+        max_power_index = np.argmax(periodogram.power)
+        period = periodogram.period[max_power_index]
+        if max_power_index > 0.0008:
+            period = period.value
+            logging.info("Auto-Detrend found the strong period: " + str(period) + ".")
+        else:
+            logging.info("Auto-Detrend did not find relevant periods.")
+            period = None
+        return period
+
     @staticmethod
     def plot_results(object_id, inject_dir, binning=1, xticks=None, yticks=None):
         df = pd.read_csv(inject_dir + '/a_tls_report.csv', float_precision='round_trip', sep=',',
@@ -366,8 +397,8 @@ class MATRIX:
             step_period = 0.1
         if step_radius <= 0:
             step_radius = 0.1
-        period_grid = np.arange(min_period, max_period + step_period / binning + 0.01, step_period)
-        radius_grid = np.arange(min_rad, max_rad + 0.01 + step_radius / binning, step_radius)
+        period_grid = np.arange(min_period, max_period + step_period / binning + 0.01, step_period) if max_period - min_period > 0 else np.full((1), min_period)
+        radius_grid = np.arange(min_rad, max_rad + 0.01 + step_radius / binning, step_radius) if max_rad - min_rad > 0 else np.full((1), min_rad)
         f = len(period_grid) / len(radius_grid)
         bins = [period_grid, radius_grid]
         h1, x, y = np.histogram2d(df['period'][df['found'] == 1], df['radius'][df['found'] == 1], bins=bins)
@@ -389,11 +420,24 @@ class MATRIX:
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
         if yticks is not None:
             plt.xticks(yticks)
-        plt.savefig('inj-rec.pdf', bbox_inches='tight', dpi=200)
+        plt.savefig(inject_dir + '/inj-rec.pdf', bbox_inches='tight', dpi=200)
         plt.close()
 
+    def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
+                 period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
+                 run_limit, custom_search_algorithm):
+        if custom_search_algorithm is not None:
+            custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
+                                                ab, intransit, epoch, period, min_period, max_period, min_snr, cores,
+                                                transit_template, ws, transits_min_count, run_limit)
+        else:
+            self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
+                     period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
+                              run_limit)
+
     def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
-                     period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count):
+                     period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
+                     run_limit):
         snr = 1e12
         found_signal = False
         time = time[~intransit]
@@ -403,7 +447,7 @@ class MATRIX:
         if ws > 0:
             flux = wotan.flatten(time, flux, window_length=ws, return_trend=False, method='biweight', break_tolerance=0.5)
         #::: search for the rest
-        while snr >= min_snr and not found_signal:
+        while snr >= min_snr and not found_signal and (run_limit > 0 and run < run_limit):
             model = transitleastsquares(time, flux)
             # R_starx = rstar / u.R_sun
             results = model.power(u=ab,

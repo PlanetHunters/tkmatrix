@@ -1,14 +1,34 @@
 import os
-
+import sys
+import pickle
 import yaml
 from argparse import ArgumentParser
 from os import path
-
 from lcbuilder.star.starinfo import StarInfo
-
+import importlib.util
 from tkmatrix.tkmatrix_class import MATRIX
 import datetime
+from pathlib import Path
 
+
+def load_module(module_path):
+    spec = importlib.util.spec_from_file_location("customs", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+def extract_custom_class(module_path):
+    class_module = None
+    if module_path is not None:
+        class_module = load_module(module_path)
+        class_name = Path(module_path.replace(".py", "")).name
+        class_module = getattr(class_module, class_name)
+        globals()[class_name] = class_module
+        pickle.dumps(class_module)
+        class_module = class_module()
+    return class_module
 
 # Check the variable CPUS from user-properties.
 # If the value is greater than the real cpus number, we replace it.
@@ -66,6 +86,9 @@ if __name__ == '__main__':
     target = matrix_user_properties["TARGET"]
     file = matrix_user_properties["FILE"]
     star_info = get_star_info(matrix_user_properties, target)
+    custom_search = extract_custom_class(matrix_user_properties["MATRIX_SEARCH_ALGORITM"])
+    custom_clean = extract_custom_class(matrix_user_properties["MATRIX_CLEAN_ALGORITM"])
+
     ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, args.preserve, star_info, file,
                 matrix_user_properties["EXPOSURE_TIME"])
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
@@ -74,6 +97,9 @@ if __name__ == '__main__':
                            matrix_user_properties["STEP_RADIUS"])
     ir.recovery(matrix_user_properties["CPUS"], inject_dir, matrix_user_properties["SNR_THRESHOLD"],
                 matrix_user_properties["SHERLOCK_DEEPNESS"], matrix_user_properties["KNOWN_TRANSITS"],
-                matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"])
+                matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
+                matrix_user_properties["RUN_LIMIT"],
+                matrix_user_properties["DETREND_PERIOD"], matrix_user_properties["DETREND_PERIOD_METHOD"],
+                custom_clean, custom_search)
     # print the execution time:
     print("Execution time: " + str(datetime.datetime.now() - start_time))

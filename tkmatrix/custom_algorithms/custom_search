@@ -1,0 +1,11 @@
+from abc import ABC, abstractmethod
+
+
+class CustomSearchAlgorithm(ABC):
+    def __init__(self):
+        pass
+
+    @abstractmethod
+    def search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch, period,
+               min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count):
+        pass
