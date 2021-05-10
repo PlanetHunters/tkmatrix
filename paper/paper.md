@@ -138,12 +138,12 @@ points to be hold by the respective grid.
 
 ## Rotation signal clean-up
 Among every kind of star that we can find, a typical case is a fast-rotator. This stars show a light curve with one or more
-remarkable sinusoidal trends with a period from a few hours to several days. In order to search for transit signals within these
+remarkable sinusoidal trends with a period from a few hours to several days, as shown in \autoref{fig:autodetrend}. In order to search for transit signals within these
 light curves, the astronomer usually needs to use some cleaning technique on them. Therefore, MATRIX adds an optional cleaning
 stage where the scientist can define three parameters: type of algorithm (`DETREND_PERIOD_METHOD` property) and size of the cleaning
 window (`DETREND_PERIOD` property).
 
-HERE A CAPTION OF A FAST ROTATOR SIGNAL BEFORE AND AFTER DETREND
+![Phase-folded light curve with information about the rotational period of the star.\label{fig:autodetrend}](autodetrend.png){width=80%}
 
 ## Custom algorithms
 Maybe the cleaning and search processes implemented in `MATRIX` could not be enough for the astronomer purposes. Therefore, we have
