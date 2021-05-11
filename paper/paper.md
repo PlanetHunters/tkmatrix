@@ -75,13 +75,12 @@ light curve in a `csv` file for each case. That is, `MATRIX` will store a set of
 The tool has successfully been used in professional first-level scientific research to assess the detectability
 of possible transiting exoplanets around Hot-Subdwarfs [@vangrootel:2021].
 
-HERE A CAPTION WITH THE PROGRAM FLOW
-
 # 2. Scientific cases 
 
-The ``MATRIX ToolKit`` is specially designed to help the scientists develop a robust inject and recovery 
+The ``MATRIX ToolKit`` is specially designed to help the scientists develop a robust injection and recovery 
 analysis on a given target star. This is needed in almost every exploration project that aims to define
-the strength of its search tools and pipelines.
+the strength of its search tools and pipelines. As a result, a table with numeric results and a default plot
+will be generated as by-products at the end of the execution.
 
 ## Single-phase inject and recovery
 The most usual way to study the ability of a given exoplanet search tool of finding new candidates is the
@@ -101,9 +100,14 @@ appear under noisy regions or data gaps, they will become much more difficult to
 to correct and therefore, we have added a new dimension to the inject and recovery scenarios: a grid of epochs
 for each period and radius cell. By setting the `PHASES` parameter to any value greater than `1` we will be running
 an injection and recovery analysis on as many different epochs for each period and radius within the grid as phases
-we determined.
+we determined. As an example, we can appreciate that the \autoref{fig:multi}, where we used 4 different epochs, defines
+much better the detection thresholds and establishes soft limits where the detectability might depend on some 
+conditions or systematics. In comparison with \autoref{fig:mono}, we can see that for a one-phase analysis those
+kind of scenarios are ignored and a hard border is defined (either a planet with a given radius and orbital period
+is marked as detectable or not). 
 
-HERE A PICTURE OF Single-phase VS Multi-Phase
+![Default plot for mono-phase analysis of TIC 169285097.\label{fig:mono}](mono.png){width=80%}
+![Default plot for 4-phase analysis of TIC 169285097.\label{fig:multi}](multi.png){width=80%}
 
 # 3. Supported inputs for targets and tools
 We have included several kind of inputs for `MATRIX`. Missions like TESS provide short and long cadence data and their study
