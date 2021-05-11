@@ -86,8 +86,8 @@ if __name__ == '__main__':
     target = matrix_user_properties["TARGET"]
     file = matrix_user_properties["FILE"]
     star_info = get_star_info(matrix_user_properties, target)
-    custom_search = extract_custom_class(matrix_user_properties["MATRIX_SEARCH_ALGORITM"])
-    custom_clean = extract_custom_class(matrix_user_properties["MATRIX_CLEAN_ALGORITM"])
+    custom_search = extract_custom_class(matrix_user_properties["CUSTOM_SEARCH_ALGORITM"])
+    custom_clean = extract_custom_class(matrix_user_properties["CUSTOM_CLEAN_ALGORITM"])
 
     ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, args.preserve, star_info, file,
                 matrix_user_properties["EXPOSURE_TIME"])
