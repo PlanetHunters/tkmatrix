@@ -107,6 +107,7 @@ kind of scenarios are ignored and a hard border is defined (either a planet with
 is marked as detectable or not). 
 
 ![Default plot for mono-phase analysis of TIC 169285097.\label{fig:mono}](mono.png){width=80%}
+
 ![Default plot for 4-phase analysis of TIC 169285097.\label{fig:multi}](multi.png){width=80%}
 
 # 3. Supported inputs for targets and tools
