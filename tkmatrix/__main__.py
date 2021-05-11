@@ -92,14 +92,17 @@ if __name__ == '__main__':
     ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, args.preserve, star_info, file,
                 matrix_user_properties["EXPOSURE_TIME"])
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
-                           matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEP_PERIOD"],
+                           matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEPS_PERIOD"],
                            matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
-                           matrix_user_properties["STEP_RADIUS"])
+                           matrix_user_properties["STEPS_RADIUS"], matrix_user_properties["PERIOD_GRID_GEOM"],
+                           matrix_user_properties["RADIUS_GRID_GEOM"])
     ir.recovery(matrix_user_properties["CPUS"], inject_dir, matrix_user_properties["SNR_THRESHOLD"],
                 matrix_user_properties["SHERLOCK_DEEPNESS"], matrix_user_properties["KNOWN_TRANSITS"],
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
                 matrix_user_properties["RUN_LIMIT"],
                 matrix_user_properties["DETREND_PERIOD"], matrix_user_properties["DETREND_PERIOD_METHOD"],
                 custom_clean, custom_search)
+    ir.plot_results(target, inject_dir, period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
+                    radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"])
     # print the execution time:
     print("Execution time: " + str(datetime.datetime.now() - start_time))

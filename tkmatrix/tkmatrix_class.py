@@ -84,14 +84,17 @@ class MATRIX:
 
         return inject_dir
 
-    def inject(self, phases, min_period, max_period, step_period, min_radius, max_radius, step_radius):
+    def inject(self, phases, min_period, max_period, steps_period, min_radius, max_radius, steps_radius,
+               period_grid_geom="lin", radius_grid_geom="lin"):
         assert phases is not None and isinstance(phases, int) and phases > 0
         assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
         assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
-        assert step_period is not None and isinstance(step_period, (int, float)) and step_period > 0
+        assert steps_period is not None and isinstance(steps_period, (int)) and steps_period > 0
         assert min_radius is not None and isinstance(min_radius, (int, float)) and min_radius > 0
         assert max_radius is not None and isinstance(max_radius, (int, float)) and max_radius > 0
-        assert step_radius is not None and isinstance(step_radius, (int, float)) and step_radius > 0
+        assert steps_radius is not None and isinstance(steps_radius, (int)) and steps_radius > 0
+        assert max_period >= min_period
+        assert max_radius >= min_radius
         self.retrieve_object_data()
         lc_new = lk.LightCurve(time=self.lc.time, flux=self.lc.flux, flux_err=self.lc.flux_err)
         clean = lc_new.remove_outliers(sigma_lower=float('inf'), sigma_upper=3)
@@ -100,9 +103,13 @@ class MATRIX:
         flux_err = clean.flux_err.value
         inject_dir = self.build_inject_dir()
         os.mkdir(inject_dir)
-        for period in np.arange(min_period, max_period + 0.01, step_period):
+        period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
+            else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
+        radius_grid = np.linspace(min_radius, max_radius, steps_radius) if radius_grid_geom == "lin" \
+            else np.logspace(np.log10(min_radius), np.log10(max_radius), steps_period)
+        for period in period_grid:
             for t0 in np.arange(time[60], time[60] + period - 0.1, period / phases):
-                for rplanet in np.arange(min_radius, max_radius + 0.01, step_radius):
+                for rplanet in radius_grid:
                     rplanet = np.around(rplanet, decimals=2) * u.R_earth
                     print('\n')
                     print('P = ' + str(period) + ' days, Rp = ' + str(rplanet) + ", T0 = " + str(t0))
@@ -126,7 +133,6 @@ class MATRIX:
         assert known_transits is None or isinstance(known_transits, list)
         assert transit_template in ('tls', 'bls')
         assert inject_dir is not None and isinstance(inject_dir, str)
-
         if self.object_info is None:
             self.retrieve_object_data()
         if transit_template == 'tls':
@@ -182,7 +188,6 @@ class MATRIX:
                     print("File not valid: " + file)
         tls_report_df = pd.read_csv(inject_dir + "a_tls_report.csv", float_precision='round_trip', sep=',',
                                     usecols=['period', 'radius', 'epoch', 'found', 'snr', 'sde', 'run'])
-        MATRIX.plot_results(self.id, inject_dir)
         if sherlock_samples > 0:
             from sherlockpipe import sherlock
             from sherlockpipe.scoring.QuorumSnrBorderCorrectedSignalSelector import QuorumSnrBorderCorrectedSignalSelector
@@ -380,7 +385,8 @@ class MATRIX:
         return period
 
     @staticmethod
-    def plot_results(object_id, inject_dir, binning=1, xticks=None, yticks=None):
+    def plot_results(object_id, inject_dir, binning=1, xticks=None, yticks=None, period_grid_geom="lin",
+                     radius_grid_geom="lin"):
         df = pd.read_csv(inject_dir + '/a_tls_report.csv', float_precision='round_trip', sep=',',
                          usecols=['period', 'radius', 'found'])
         min_period = df["period"].min()
@@ -388,17 +394,25 @@ class MATRIX:
         min_rad = df["radius"].min()
         max_rad = df["radius"].max()
         phases = len(df[df["period"] == df["period"].min()][df["radius"] == df["radius"].min()])
-        step_period = (max_period - min_period) / (len(df["period"].unique()) - 1)
-        step_radius = (max_rad - min_rad) / (len(df["radius"].unique()) - 1)
         phases_str = "phase" if phases == 1 else "phases"
-        step_period = step_period * binning
-        step_radius = step_radius * binning
-        if step_period <= 0:
-            step_period = 0.1
-        if step_radius <= 0:
-            step_radius = 0.1
-        period_grid = np.arange(min_period, max_period + step_period / binning + 0.01, step_period) if max_period - min_period > 0 else np.full((1), min_period)
-        radius_grid = np.arange(min_rad, max_rad + 0.01 + step_radius / binning, step_radius) if max_rad - min_rad > 0 else np.full((1), min_rad)
+        if period_grid_geom == 'lin':
+            step_period = (max_period - min_period) / (len(df["period"].unique()) - 1)
+            step_period = step_period * binning
+            if step_period <= 0:
+                step_period = 0.1
+            period_grid = np.arange(min_period, max_period + step_period / binning + 0.01,
+                                    step_period) if max_period - min_period > 0 else np.full((1), min_period)
+        else:
+            period_grid = np.logspace(np.log10(min_period), np.log10(max_period), len(df["period"].unique()))
+        if radius_grid_geom == 'lin':
+            step_radius = (max_rad - min_rad) / (len(df["radius"].unique()) - 1)
+            step_radius = step_radius * binning
+            if step_radius <= 0:
+                step_radius = 0.1
+            radius_grid = np.arange(min_rad, max_rad + 0.01 + step_radius / binning,
+                                    step_radius) if max_rad - min_rad > 0 else np.full((1), min_rad)
+        else:
+            radius_grid = np.logspace(np.log10(min_rad), np.log10(max_rad), len(df["radius"].unique()))
         f = len(period_grid) / len(radius_grid)
         bins = [period_grid, radius_grid]
         h1, x, y = np.histogram2d(df['period'][df['found'] == 1], df['radius'][df['found'] == 1], bins=bins)
@@ -420,18 +434,18 @@ class MATRIX:
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
         if yticks is not None:
             plt.xticks(yticks)
-        plt.savefig(inject_dir + '/inj-rec.pdf', bbox_inches='tight', dpi=200)
+        plt.savefig(inject_dir + '/inj-rec.png', bbox_inches='tight', dpi=200)
         plt.close()
 
     def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
                  period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
                  run_limit, custom_search_algorithm):
         if custom_search_algorithm is not None:
-            custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
+            return custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                                                 ab, intransit, epoch, period, min_period, max_period, min_snr, cores,
                                                 transit_template, ws, transits_min_count, run_limit)
         else:
-            self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
+            return self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
                      period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
                               run_limit)
 
