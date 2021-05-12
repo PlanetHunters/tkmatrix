@@ -185,6 +185,11 @@ We will also probably study other software tools capable of generating transit m
 performance of the inject phase, maybe replacing `ellc` by `PyTransit` [@parvianen:2015], which under our several
 preliminary tests seemed to run faster.
 
+In addition to the previous future developments, we are also interested in adding a generic injection stage, where
+any kind of model could be generated and then injected into the raw light curves. Summed to the generic search
+feature that we currently provide, we would enhance `MATRIX` to a level where it could be used to perform injection
+and recovery scenarios for any type of features within light curves like disintegrating planets transits or flares. 
+
 # Acknowledgements
 We acknowledge support from the Spanish Ministry of Science through the project PID2019-107061GB-C64/SRA (State Research Agency/10.13039/501100011033)
 
