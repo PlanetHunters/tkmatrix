@@ -50,9 +50,12 @@ as COROT [@baglin:2006], Kepler [@borucki:2010] and TESS [@ricker:2015], produci
 of scientists looking forward to them. Every star observation shows its own systematics, together
 with the common ones, due to its own characteristics and its nearby sky field. Therefore,
 it has been a common task for scientists to create exoplanet transiting models for each analyzed star
-and try their search tools on them to define their detection limits. We present an extension to the 
-typical model injection and recovery scenarios by adding a new dimension to the analysis, establishing
-in most of the cases more confident detection thresholds.
+and try their search tools on them to find their detection limits. Typically, the astronomer has to compile
+several tools and put them together in order to retrieve the desired data, clean it, generate the models, inject
+them into the data and then perform the recovery process. We present a new software package that provides 
+a smooth integration of all these stages and an extension to the typical model injection and recovery 
+scenarios by adding a new dimension to the analysis, establishing more confident 
+detection thresholds in most of the cases.
 
 # 1. MATRIX
 The main data product that astronomers use to analyze and search for transiting exoplanets are the light
@@ -68,9 +71,14 @@ better residuals thanks to the usage of realistic transit models for its fit sta
 The user will provide a grid of periods by selecting the `MAX_PERIOD`, `MIN_PERIOD` and `STEP_PERIOD`, a grid
 of planet radius by selecting `MAX_RADIUS`, `MIN_RADIUS` and `STEP_RADIUS` and the number of epochs to be explored
 for each case. ``MATRIX`` will initially download the target star light curve (or load a `csv` file specified by the 
-user), generate a model of transit injecting it into the original data and store the resultant modelled
-light curve in a `csv` file for each case. That is, `MATRIX` will store a set of 
+user), generate a model of transit thanks to the usage of `ellc` [@maxted:2016], injecting it into the original data and 
+store the resultant modeled light curve in a `csv` file for each case. That is, `MATRIX` will store a set of 
 `PERIOD_GRID_SIZE` x `RADIUS_GRID_SIZE` x `EPOCHS_COUNT` files for the recovery scenario.
+
+In the recovery stage, `MATRIX` will load each of the transit-injected light curves and will perform a user-defined
+trend normalization using `wotan` [@wotan:2019]. Afterwards, the injected transits will be searched by using `TLS`. 
+In case a transit signal has been found to match the injected one with the same period or a period matching the
+first three subharmonics or harmonics (with an error tolerance of 1 hour) and epoch (also with an error tolerance of 1 hour) 
 
 The tool has successfully been used in professional first-level scientific research to assess the detectability
 of possible transiting exoplanets around Hot-Subdwarfs [@vangrootel:2021].
@@ -100,14 +108,7 @@ appear under noisy regions or data gaps, they will become much more difficult to
 to correct and therefore, we have added a new dimension to the inject and recovery scenarios: a grid of epochs
 for each period and radius cell. By setting the `PHASES` parameter to any value greater than `1` we will be running
 an injection and recovery analysis on as many different epochs for each period and radius within the grid as phases
-we determined. As an example, we can appreciate that the \autoref{fig:multi}, where we used 4 different epochs, defines
-much better the detection thresholds and establishes soft limits where the detectability might depend on some 
-conditions or systematics. In comparison with \autoref{fig:mono}, we can see that for a one-phase analysis those
-kind of scenarios are ignored and a hard border is defined (either a planet with a given radius and orbital period
-is marked as detectable or not). 
-
-![Default plot for mono-phase analysis of TIC 169285097.\label{fig:mono}](mono.png){width=80%}
-![Default plot for 4-phase analysis of TIC 169285097.\label{fig:multi}](multi.png){width=80%}
+we determined.
 
 # 3. Supported inputs for targets and tools
 We have included several kind of inputs for `MATRIX`. Missions like TESS provide short and long cadence data and their study
@@ -157,9 +158,17 @@ classes provided by `MATRIX` and then pass them to the constructor (if running v
 and `CUSTOM_SEARCH_ALGORITM` properties respectively (if running through the main entrypoint).
 
 # 4. Performance
-COMPARISON BETWEEN SINGLE vs MULTI FOR TWO TARGETS
-SNR AND SDE DATA FOR SHALLOW TRANSITS
-COMPARISON BETWEEN MULTI vs MULTI WITH SAVGOL vs MULTI WITH BUTTERWORTH
+As mentioned before, the multi-phase injection and recovery scenarios help us to better characterize the detection
+limits by giving a new dimension to the found thresholds. That is, we can determine that the borders are not hard.
+Instead, we prove that they are variable and might depend on different diverse systematics of each target star.
+As an example, we can appreciate that the \autoref{fig:multi}, where we used 4 different epochs, defines
+much better the detection thresholds and establishes soft limits where the detectability might depend on some 
+conditions or systematics. In comparison with \autoref{fig:mono}, we can see that for a one-phase analysis those
+kind of scenarios are ignored and a hard border is defined (either a planet with a given radius and orbital period
+is marked as detectable or not). 
+
+![Default plot for mono-phase analysis of TIC 169285097.\label{fig:mono}](mono.png){width=80%}
+![Default plot for 4-phase analysis of TIC 169285097.\label{fig:multi}](multi.png){width=80%}
 
 
 # 5. Future implementations  
@@ -170,6 +179,10 @@ not found), which might represent a waste of computational power. To mitigate th
 kind of attention mechanism into our algorithm in such a way that it could only keep testing the scenario only
 near the detection limits, assuming that above them the results are true (found) and below them they are 
 false (not found).
+
+We will also probably study other software tools capable of generating transit models that could improve the
+performance of the inject phase, maybe replacing `ellc` by `PyTransit` [@parvianen:2015], which under our several
+preliminary tests seemed to run faster.
 
 # Acknowledgements
 We acknowledge support from the Spanish Ministry of Science through the project PID2019-107061GB-C64/SRA (State Research Agency/10.13039/501100011033)
