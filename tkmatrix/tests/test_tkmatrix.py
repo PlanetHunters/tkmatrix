@@ -11,10 +11,11 @@ from tkmatrix.tkmatrix_class import MATRIX
 
 class TestsMatrix(unittest.TestCase):
     def test_inject_one(self):
-        matrix = MATRIX("TIC 220513363", [1], ".", exposure_time=120)
+        target = "TIC 220513363"
+        matrix = MATRIX(target, [1], ".", exposure_time=120)
         inject_dir = None
         try:
-            inject_dir = matrix.inject(1, 5, 5, 0.1, 3, 3, 0.1)
+            inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
             self.assertEquals(1, len(os.listdir(inject_dir)))
             self.assertEquals([1], matrix.sectors)
             self.assertAlmostEqual(0.47, matrix.mass, 2)
@@ -33,29 +34,34 @@ class TestsMatrix(unittest.TestCase):
             self.assertAlmostEqual(0.284, matrix.rstar_max.value, 3)
             self.assertEquals(".", matrix.dir)
             matrix.recovery(multiprocessing.cpu_count() - 1, inject_dir, 5, 0)
+            matrix.plot_results(target, inject_dir)
             self.assertEquals(2, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
 
     def test_inject_one_preserve(self):
-        matrix = MATRIX("TIC 220513363", [1], ".", True, exposure_time=120)
+        target = "TIC 220513363"
+        matrix = MATRIX(target, [1], ".", True, exposure_time=120)
         inject_dir = None
         try:
-            inject_dir = matrix.inject(1, 5, 5, 0.1, 3, 3, 0.1)
+            inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
             matrix.recovery(multiprocessing.cpu_count() - 1, inject_dir, 5, 0)
+            matrix.plot_results(target, inject_dir)
             self.assertEquals(3, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
 
     def test_inject_four(self):
-        matrix = MATRIX("TIC 220513363", [1], ".", exposure_time=120)
+        target = "TIC 220513363"
+        matrix = MATRIX(target, [1], ".", exposure_time=120)
         inject_dir = None
         try:
-            inject_dir = matrix.inject(1, 5, 5.1, 0.1, 3, 3.1, 0.1)
+            inject_dir = matrix.inject(1, 5, 5.1, 2, 3, 3.1, 2)
             self.assertEquals(4, len(os.listdir(inject_dir)))
             matrix.recovery(multiprocessing.cpu_count() - 1, inject_dir, 5, 0, None, 0.5)
+            matrix.plot_results(target, inject_dir)
             self.assertEquals(2, len(os.listdir(inject_dir)))
             with open(inject_dir + "/a_tls_report.csv") as f:
                 for i, l in enumerate(f):
@@ -66,12 +72,14 @@ class TestsMatrix(unittest.TestCase):
                 shutil.rmtree(inject_dir, ignore_errors=True)
 
     def test_inject_multiphase(self):
-        matrix = MATRIX("TIC 220513363", [1], ".", exposure_time=120)
+        target = "TIC 220513363"
+        matrix = MATRIX(target, [1], ".", exposure_time=120)
         inject_dir = None
         try:
-            inject_dir = matrix.inject(2, 5, 5, 0.1, 3, 3, 0.1)
+            inject_dir = matrix.inject(2, 5, 5, 1, 3, 3, 1)
             self.assertEquals(2, len(os.listdir(inject_dir)))
             matrix.recovery(multiprocessing.cpu_count() - 1, inject_dir, 5, 0, None, 0.5)
+            matrix.plot_results(target, inject_dir)
             self.assertEquals(2, len(os.listdir(inject_dir)))
             with open(inject_dir + "/a_tls_report.csv") as f:
                 for i, l in enumerate(f):
@@ -82,7 +90,8 @@ class TestsMatrix(unittest.TestCase):
                 shutil.rmtree(inject_dir, ignore_errors=True)
 
     def test_transit_mask(self):
-        matrix = MATRIX("TIC 305048087", [2], ".", exposure_time=120)
+        target = "TIC 305048087"
+        matrix = MATRIX(target, [2], ".", exposure_time=120)
         matrix.retrieve_object_data()
         power_args = {"transit_template": "default", "period_min": 1, "period_max": 10,
                       "n_transits_min": 2, "show_progress_bar": True, "use_threads": multiprocessing.cpu_count() - 1,
@@ -98,49 +107,51 @@ class TestsMatrix(unittest.TestCase):
         self.assertNotAlmostEqual(5.43, results.period, 2)
 
     def test_inject_inputs(self):
-        matrix = MATRIX("TIC 305048087", [2], ".", exposure_time=120)
+        target = "TIC 305048087"
+        matrix = MATRIX(target, [2], ".", exposure_time=120)
         inject_dir = None
         with(pytest.raises(AssertionError)):
-            inject_dir = matrix.inject(2, 5, 5.1, 0.1, 3, 3.1, "ho")
+            inject_dir = matrix.inject(2, 5, 5.1, 2, 3, 3.1, "ho")
         if inject_dir is not None:
             shutil.rmtree(inject_dir, ignore_errors=True)
         with(pytest.raises(AssertionError)):
-            inject_dir = matrix.inject(2, 5, 5.1, 0.1, 3, 3.1, -0.1)
+            inject_dir = matrix.inject(2, 5, 5.1, 2, 3, 3.1, -0.1)
         if inject_dir is not None:
             shutil.rmtree(inject_dir, ignore_errors=True)
         with(pytest.raises(AssertionError)):
-            inject_dir = matrix.inject(2, 5, 5.1, 0.1, 3, -3.1, 0.1)
+            inject_dir = matrix.inject(2, 5, 5.1, 2, 3, -3.1, 2)
         if inject_dir is not None:
             shutil.rmtree(inject_dir, ignore_errors=True)
         with(pytest.raises(AssertionError)):
-            inject_dir = matrix.inject(2, 5, 5.1, 0.1, -3, 3.1, 0.1)
+            inject_dir = matrix.inject(2, 5, 5.1, 2, -3, 3.1, 2)
         if inject_dir is not None:
             shutil.rmtree(inject_dir, ignore_errors=True)
         with(pytest.raises(AssertionError)):
-            inject_dir = matrix.inject(2, 5, 5.1, -0.1, 3, 3.1, 0.1)
+            inject_dir = matrix.inject(2, 5, 5.1, -2, 3, 3.1, 2)
         if inject_dir is not None:
             shutil.rmtree(inject_dir, ignore_errors=True)
         with(pytest.raises(AssertionError)):
-            inject_dir = matrix.inject(2, 5, -5.1, 0.1, 3, 3.1, 0.1)
+            inject_dir = matrix.inject(2, 5, -5.1, 2, 3, 3.1, 2)
         if inject_dir is not None:
             shutil.rmtree(inject_dir, ignore_errors=True)
         with(pytest.raises(AssertionError)):
-            inject_dir = matrix.inject(2, -5, 5.1, 0.1, 3, 3.1, 0.1)
+            inject_dir = matrix.inject(2, -5, 5.1, 2, 3, 3.1, 2)
         if inject_dir is not None:
             shutil.rmtree(inject_dir, ignore_errors=True)
         with(pytest.raises(AssertionError)):
-            inject_dir = matrix.inject(-2, 5, 5.1, 0.1, 3, 3.1, 0.1)
+            inject_dir = matrix.inject(-2, 5, 5.1, 2, 3, 3.1, 2)
         if inject_dir is not None:
             shutil.rmtree(inject_dir, ignore_errors=True)
 
     def test_inject_dir(self):
         inject_dir1 = None
         inject_dir2 = None
-        matrix = MATRIX("TIC 305048087", [2], ".", exposure_time=120)
+        target = "TIC 305048087"
+        matrix = MATRIX(target, [2], ".", exposure_time=120)
         try:
-            inject_dir1 = matrix.inject(2, 5, 5, 0.1, 3, 3, 0.1)
+            inject_dir1 = matrix.inject(2, 5, 5, 1, 3, 3, 1)
             self.assertTrue(os.path.isdir(inject_dir1))
-            inject_dir2 = matrix.inject(2, 5, 5, 0.1, 3, 3, 0.1)
+            inject_dir2 = matrix.inject(2, 5, 5, 1, 3, 3, 1)
             self.assertTrue(os.path.isdir(inject_dir2))
         finally:
             if inject_dir1 is not None:
@@ -149,11 +160,12 @@ class TestsMatrix(unittest.TestCase):
                 shutil.rmtree(inject_dir2)
 
     def test_star_info(self):
-        star_info = StarInfo("TIC 220513363", (0.2, 0.5), 2000, 1.2, None, 0.5, 0.1, 0.2, 0.7, 0.15, 0.05, None, None)
-        matrix = MATRIX("TIC 220513363", [1], ".", False, star_info, exposure_time=120)
+        target = "TIC 220513363"
+        star_info = StarInfo(target, (0.2, 0.5), 2000, 1.2, None, 0.5, 0.1, 0.2, 0.7, 0.15, 0.05, None, None)
+        matrix = MATRIX(target, [1], ".", False, star_info, exposure_time=120)
         inject_dir = None
         try:
-            inject_dir = matrix.inject(1, 5, 5, 0.1, 3, 3, 0.1)
+            inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
             self.assertEquals(1, len(os.listdir(inject_dir)))
             self.assertEquals((0.2, 0.5), matrix.star_info.ld_coefficients)
             self.assertEquals(2000, matrix.star_info.teff)
@@ -166,10 +178,10 @@ class TestsMatrix(unittest.TestCase):
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
-        matrix = MATRIX("TIC 220513363", [1], ".", exposure_time=120)
+        matrix = MATRIX(target, [1], ".", exposure_time=120)
         inject_dir = None
         try:
-            inject_dir = matrix.inject(1, 5, 5, 0.1, 3, 3, 0.1)
+            inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
             self.assertEquals(1, len(os.listdir(inject_dir)))
             self.assertEquals((0.1258, 0.235), matrix.star_info.ld_coefficients)
             self.assertEquals(31000.0, matrix.star_info.teff)

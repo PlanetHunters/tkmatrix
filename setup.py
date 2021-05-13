@@ -26,7 +26,7 @@ setuptools.setup(
                         "corner==2.1.0",
                         "cython==0.29.21",
                         "ellc==1.8.5",
-                        "lcbuilder==0.1.9",
+                        "lcbuilder==0.2.0",
                         "matplotlib==3.3.4",
                         "mock==4.0.3",
                         'numba>=0.53.0rc1',

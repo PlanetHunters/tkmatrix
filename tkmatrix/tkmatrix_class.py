@@ -460,7 +460,6 @@ class MATRIX:
         run = 0
         if ws > 0:
             flux = wotan.flatten(time, flux, window_length=ws, return_trend=False, method='biweight', break_tolerance=0.5)
-        #::: search for the rest
         while snr >= min_snr and not found_signal and (run_limit > 0 and run < run_limit):
             model = transitleastsquares(time, flux)
             # R_starx = rstar / u.R_sun
@@ -474,7 +473,7 @@ class MATRIX:
                                   period_min=min_period,
                                   period_max=max_period,
                                   n_transits_min=transits_min_count,
-                                  show_progress_bar=False,
+                                  show_progress_bar=True,
                                   use_threads=cores,
                                   transit_template=transit_template
                                   )
