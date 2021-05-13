@@ -10,8 +10,8 @@ from lcbuilder.objectinfo.preparer.MissionLightcurveBuilder import MissionLightc
 from lcbuilder.objectinfo.MissionObjectInfo import MissionObjectInfo
 import wotan
 from matplotlib.ticker import FormatStrFormatter
-from transitleastsquares import transitleastsquares
-from transitleastsquares import transit_mask, cleaned_array
+from foldedleastsquares import transitleastsquares
+from foldedleastsquares import transit_mask, cleaned_array
 import astropy.constants as ac
 import astropy.units as u
 import lightkurve as lk

@@ -20,10 +20,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     python_requires='>=3.6.9',
-    install_requires=['numpy==1.20.1; python_version>="3.7"',
-                        'numpy==1.19; python_version<"3.7"',
-
-                        'argparse==1.4.0',
+    install_requires=[  'argparse==1.4.0',
                         'beautifulsoup4==4.9.3',
                         'configparser==5.0.1',
                         "corner==2.1.0",
