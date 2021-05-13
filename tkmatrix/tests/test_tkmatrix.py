@@ -4,7 +4,7 @@ import shutil
 import unittest
 import pytest
 from lcbuilder.star.starinfo import StarInfo
-from transitleastsquares import transitleastsquares
+from foldedleastsquares import transitleastsquares
 
 from tkmatrix.tkmatrix_class import MATRIX
 
