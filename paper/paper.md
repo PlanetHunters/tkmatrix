@@ -92,7 +92,7 @@ points in the respective grid.
 ## Rotation signal clean-up
 Among every kind of star that one can find, a typical case is a fast-rotator. This type of star shows a light curve with one or more remarkable sinusoidal trends with a period ranging a from a few hours to several days, as shown in \autoref{fig:fast_rotator}. In order to search for transit signals within these light curves, the astronomer usually needs to use some cleaning technique on them. Therefore, `MATRIX` adds an optional cleaning stage where the user can define the type of algorithm (`DETREND_PERIOD_METHOD`) and the size of the cleaning window (`DETREND_PERIOD`).
 
-![Power spectrum and phase-folded light curve with information about the rotational period of the star.\label{fig:fast_rotator}](fast_rotator.png){width=20%}
+![Power spectrum and phase-folded light curve with information about the rotational period of the star.\label{fig:fast_rotator}](fast_rotator.png){width=80%}
 
 ## Custom algorithms
 In the situations where the cleaning and search processes implemented in `MATRIX` are insufficient for the user’s purposes, we have added the option to override them by changing specific properties. If the user would like to employ different cleaning and different search algorithms, new implementations of MatrixCleaningAlgorithm and MatrixSearchAlgorithm 
