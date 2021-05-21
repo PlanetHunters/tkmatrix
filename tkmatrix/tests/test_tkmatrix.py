@@ -161,7 +161,7 @@ class TestsMatrix(unittest.TestCase):
 
     def test_star_info(self):
         target = "TIC 220513363"
-        star_info = StarInfo(target, (0.2, 0.5), 2000, 1.2, None, 0.5, 0.1, 0.2, 0.7, 0.15, 0.05, None, None)
+        star_info = StarInfo(target, (0.2, 0.5), 2000, 1.2, None, None, 0.5, 0.1, 0.2, 0.7, 0.15, 0.05, None, None)
         matrix = MATRIX(target, [1], ".", False, star_info, exposure_time=120)
         inject_dir = None
         try:
