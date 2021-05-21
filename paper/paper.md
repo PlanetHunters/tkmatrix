@@ -58,7 +58,7 @@ The user should provide a grid of periods by selecting the values of `MAX_PERIOD
 
 In the recovery stage, `MATRIX` will load each of the transit-injected light curves and will perform a user-defined trend normalization using `wotan` [@wotan:2019]. Afterwards, the injected transits will be searched using `TLS`. A recovered planet is defined when a transit signal is found to match the injected one with the same period (or a period matching any of the first three sub-harmonics or harmonics) and epoch, and where both the period and epoch have an error tolerance of one hour. The algorithm will search for the injected signal up to five runs (event though this value can be customized); that is, after a run, if the signal found is not the injected one, it will be masked and the signal search will be repeated. After five negative runs, the injected signal will be labelled as non-recovered.       
 
-The original algorithm, without the multi-phase approach, was used for first time by [@pozuelos:2020] and [@demory:2020]. Its new improved version, now called `MATRIX`, has successfully been tested by [@vangrootel:2021] and [@wells:2021].
+The original algorithm, without the multi-phase approach, was used for first time by @pozuelos:2020 and @demory:2020. Its new improved version, now called `MATRIX`, has successfully been tested by @vangrootel:2021.
 
 # 2. Scientific cases 
 
