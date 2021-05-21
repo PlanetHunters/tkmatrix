@@ -32,6 +32,7 @@ affiliations:
  - name: Astrobiology Research Unit, Universitè de Liège, Allée du 6 Août 19C, B-4000 Liège, Belgium
    index: 3
  - name: No affiliation
+   index: 4
    
 date: 22 January 2021
 bibliography: paper.bib
