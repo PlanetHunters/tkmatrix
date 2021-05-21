@@ -20,8 +20,8 @@ authors:
   - name: Valérie Van Grootel
     affiliation: 2
   - name: Luis Cerdeño Mota
-    orcid:
-    affiliation:
+    orcid: 
+    affiliation: 4
   - name: Juan C. Suarez
     affiliation: 1
 affiliations:
@@ -31,6 +31,7 @@ affiliations:
    index: 2
  - name: Astrobiology Research Unit, Universitè de Liège, Allée du 6 Août 19C, B-4000 Liège, Belgium
    index: 3
+ - name: No affiliation
    
 date: 22 January 2021
 bibliography: paper.bib
@@ -107,11 +108,7 @@ As mentioned before, multi-phase injection-and-recovery experiments help us to b
 # 5. Future implementations  
 
 As square grids are used, and the injection-and-recovery scenarios focus
-on finding the detection threshold, some wide regions are usually show the same detection values 
-(i.e., found or not found), which might represent a waste of computational power. To mitigate this, 
-we plan to incorporate some form of attention mechanism into our algorithm in such a way that it could 
-only keep testing the scenario near the detection limits, assuming that above them the results are true 
-(found) and below them they are false (not found).
+on finding the detection threshold, some wide regions are usually show the same detection values (i.e., found or not found), which might represent a waste of computational power. To mitigate this, we plan to incorporate some form of attention mechanism into our algorithm in such a way that it could only keep testing the scenario near the detection limits, assuming that above them the results are true (found) and below them they are false (not found).
 
 # Acknowledgements
 We acknowledge support from the Spanish Ministry of Science through the project PID2019-107061GB-C64/SRA (State Research Agency/10.13039/501100011033)
