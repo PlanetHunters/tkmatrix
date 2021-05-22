@@ -116,7 +116,7 @@ rates are basically reduced to recovered or non-recovered.
 As square grids are used, and the injection-and-recovery scenarios focus
 on finding the detection threshold, some wide regions are usually showing the same detection values (i.e., found or not found), which might represent a waste of computational power. To mitigate this, we plan to incorporate some form of attention mechanism into our algorithm in such a way that it could only keep testing the scenario near the detection limits, assuming that above them the results are true (found) and below them they are false (not found).
 
-In addition, the error tolerance of the search needs probably to be scaled to the each analysed period, because the threshold
+In addition, the error tolerance of the search needs probably to be scaled to each analysed period, because the threshold
 that is currently used (1 hour) is probably very high for short-period planets and low for long-period planets. 
 
 # Acknowledgements
