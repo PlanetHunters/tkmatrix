@@ -51,6 +51,7 @@ def get_star_info(properties, id):
                              star_properties["TEFF"] if "TEFF" in star_properties else None,
                              star_properties["LUM"] if "LUM" in star_properties else None,
                              star_properties["LOGG"] if "LOGG" in star_properties else None,
+                             star_properties["LOGG_ERR"] if "LOGG_ERR" in star_properties else None,
                              star_properties["RADIUS"] if "RADIUS" in star_properties else None,
                              star_properties["RADIUS_LOWER_ERROR"] if "RADIUS_LOWER_ERROR" in star_properties else None,
                              star_properties["RADIUS_UPPER_ERROR"] if "RADIUS_UPPER_ERROR" in star_properties else None,
