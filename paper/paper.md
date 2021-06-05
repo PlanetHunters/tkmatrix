@@ -15,12 +15,10 @@ authors:
     orcid: 0000-0003-1572-7707
     affiliation: "2, 3" # (Multiple affiliations must be quoted)
   - name: Antoine Thuillier
-    orcid: 
     affiliation: 2 # (Multiple affiliations must be quoted)
   - name: Valérie Van Grootel
     affiliation: 2
   - name: Luis Cerdeño Mota
-    orcid: 
     affiliation: 4
   - name: Juan C. Suarez
     affiliation: 1
