@@ -162,6 +162,7 @@ class MATRIX:
                         snr = 20
                         sde = 20
                         run = 1
+                        duration = 20
                     else:
                         lc = lk.LightCurve(time=df['#time'], flux=df['flux'], flux_err=df['flux_err'])
                         clean_lc = lc.remove_nans().remove_outliers(sigma_lower=float('inf'),
@@ -170,15 +171,15 @@ class MATRIX:
                         time = clean_lc.time.value
                         flux = self.__clean(clean_lc, detrend_period, detrend_period_method, custom_clean_algorithm)
                         intransit = self.transit_masks(known_transits, time)
-                        found, snr, sde, run = self.__search(time, flux, self.radius, self.radiusmin,
+                        found, snr, sde, run, duration = self.__search(time, flux, self.radius, self.radiusmin,
                                                              self.radiusmax, self.mass, self.massmin,
                                                              self.massmax, self.ab, intransit, epoch, period, 0.5,
                                                              time[len(time) - 1] - time[0], snr_threshold, cores,
                                                              transit_template, detrend_ws, self.transits_min_count,
                                                              run_limit, custom_search_algorithm)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
-                                  "sde": sde, "run": run}
-                    reports_df = reports_df.append(new_report, ignore_index=True)
+                                  "sde": sde, "run": run, "duration": duration}
+                    reports_df = reports_df.append(new_report)
                     print("P=" + str(period) + ", R=" + str(r_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
                         found) +
                           " WITH SNR " + str(snr) + " AND SDE " + str(sde))
@@ -187,7 +188,7 @@ class MATRIX:
                     traceback.print_exc()
                     print("File not valid: " + file)
         tls_report_df = pd.read_csv(inject_dir + "a_tls_report.csv", float_precision='round_trip', sep=',',
-                                    usecols=['period', 'radius', 'epoch', 'found', 'snr', 'sde', 'run'])
+                                    usecols=['period', 'radius', 'epoch', 'found', 'duration', 'snr', 'sde', 'run'])
         if sherlock_samples > 0:
             from sherlockpipe import sherlock
             from sherlockpipe.scoring.QuorumSnrBorderCorrectedSignalSelector import QuorumSnrBorderCorrectedSignalSelector
@@ -520,7 +521,7 @@ class MATRIX:
                     found_signal = True
                     break
             run = run + 1
-        return found_signal, results.snr, results.SDE, run
+        return found_signal, results.snr, results.SDE, run, results.duration
 
     def __equal(self, a, b, tolerance=0.01):
         return np.abs(a - b) < tolerance
