@@ -26,24 +26,53 @@ class MATRIX:
     """
     object_info = None
 
-    def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None, exposure_time=None):
+    def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None, exposure_time=None,
+                 initial_mask=None, initial_transit_mask=None,
+                 eleanor_corr_flux='pca_flux', outliers_sigma=None, high_rms_enabled=True, high_rms_threshold=2.5,
+                 high_rms_bin_hours=4, smooth_enabled=False,
+                 auto_detrend_enabled=False, auto_detrend_method="cosine", auto_detrend_ratio=0.25,
+                 auto_detrend_period=None, prepare_algorithm=None):
         assert target is not None and isinstance(target, str)
         assert sectors is not None and (sectors == 'all' or isinstance(sectors, list))
         assert exposure_time is not None and isinstance(exposure_time, (int, float))
+        assert initial_transit_mask is None or isinstance(initial_transit_mask, list)
         self.id = target
         self.dir = dir
         self.sectors = sectors
         self.star_info = star_info
+        self.exposure_time = exposure_time
         self.preserve = preserve
         self.file = file
-        self.exposure_time = exposure_time
+        self.eleanor_corr_flux = eleanor_corr_flux
+        self.initial_mask = initial_mask
+        self.initial_transit_mask = initial_transit_mask
+        self.star_info = star_info
+        self.outliers_sigma = outliers_sigma
+        self.high_rms_enabled = high_rms_enabled
+        self.high_rms_threshold = high_rms_threshold
+        self.high_rms_bin_hours = high_rms_bin_hours
+        self.smooth_enabled = smooth_enabled
+        self.auto_detrend_enabled = auto_detrend_enabled
+        self.auto_detrend_method = auto_detrend_method
+        self.auto_detrend_ratio = auto_detrend_ratio
+        self.auto_detrend_period = auto_detrend_period
+        self.prepare_algorithm = prepare_algorithm
 
-    def retrieve_object_data(self):
+    def retrieve_object_data(self, inject_dir=None):
         lcbuilder = LcBuilder()
-        self.object_info = lcbuilder.build_object_info(self.id, None, self.sectors, self.file, self.exposure_time, None,
-                                                       None, None, self.star_info, None)
-        self.lc, self.lc_data, star_info, self.transits_min_count, self.sectors, self.quarters = \
-            lcbuilder.build(self.object_info, None)
+        self.object_info = lcbuilder.build_object_info(self.id, None, self.sectors, self.file, self.exposure_time,
+                                                       self.initial_mask, self.initial_transit_mask,
+                                                       self.star_info, None,
+                                                       self.eleanor_corr_flux, self.outliers_sigma,
+                                                       self.high_rms_enabled, self.high_rms_threshold,
+                                                       self.high_rms_bin_hours, self.smooth_enabled,
+                                                       self.auto_detrend_enabled, self.auto_detrend_method,
+                                                       self.auto_detrend_ratio, self.auto_detrend_period,
+                                                       self.prepare_algorithm)
+        if inject_dir is None:
+            inject_dir = self.build_inject_dir()
+        self.lc, lc_data, star_info, self.transits_min_count, cadence, detrend_period, sectors = \
+            lcbuilder.build(self.object_info, inject_dir)
         if self.star_info is None:
             self.star_info = star_info
         self.ab = self.star_info.ld_coefficients
@@ -60,15 +89,7 @@ class MATRIX:
         self.mstar_max = self.star_info.mass_max * u.M_sun
         self.rstar_min = self.star_info.radius_min * u.R_sun
         self.rstar_max = self.star_info.radius_max * u.R_sun
-        print('\n STELLAR PROPERTIES FOR THE SIGNAL SEARCH')
-        print('================================================\n')
-        print('limb-darkening estimates using quadratic LD (a,b)=', self.ab)
-        print('mass =', format(self.mstar, '0.5f'))
-        print('mass_min =', format(self.mstar_min, '0.5f'))
-        print('mass_max =', format(self.mstar_max, '0.5f'))
-        print('radius =', format(self.rstar, '0.5f'))
-        print('radius_min =', format(self.rstar_min, '0.5f'))
-        print('radius_max =', format(self.rstar_max, '0.5f'))
+        return inject_dir
 
     def build_inject_dir(self):
         inject_dir = self.dir + "/" + self.object_info.mission_id().replace(" ", "") + "_ir/"
@@ -81,7 +102,7 @@ class MATRIX:
                 inject_dir = self.dir + "/" + inject_dir[:-1] + "_" + str(int(number) + 1) + "/"
             else:
                 inject_dir = self.dir + "/" + inject_dir[:-1] + "_1/"
-
+        os.mkdir(inject_dir)
         return inject_dir
 
     def inject(self, phases, min_period, max_period, steps_period, min_radius, max_radius, steps_radius,
@@ -95,14 +116,12 @@ class MATRIX:
         assert steps_radius is not None and isinstance(steps_radius, (int)) and steps_radius > 0
         assert max_period >= min_period
         assert max_radius >= min_radius
-        self.retrieve_object_data()
+        inject_dir = self.retrieve_object_data()
         lc_new = lk.LightCurve(time=self.lc.time, flux=self.lc.flux, flux_err=self.lc.flux_err)
         clean = lc_new.remove_outliers(sigma_lower=float('inf'), sigma_upper=3)
         flux0 = clean.flux.value
         time = clean.time.value
         flux_err = clean.flux_err.value
-        inject_dir = self.build_inject_dir()
-        os.mkdir(inject_dir)
         period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
             else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
         radius_grid = np.linspace(min_radius, max_radius, steps_radius) if radius_grid_geom == "lin" \
@@ -125,36 +144,28 @@ class MATRIX:
                     lc_df.to_csv(file_name, index=False)
         return inject_dir
 
-    def recovery(self, cores, inject_dir, snr_threshold=5, sherlock_samples=0, known_transits=None, detrend_ws=0,
-                 transit_template='tls', run_limit=5, detrend_period=False, detrend_period_method='cosine',
+    def recovery(self, cores, inject_dir, snr_threshold=5, sherlock_samples=0, detrend_ws=0,
+                 transit_template='tls', run_limit=5,
                  custom_clean_algorithm=None, custom_search_algorithm=None):
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert cores is not None
-        assert known_transits is None or isinstance(known_transits, list)
         assert transit_template in ('tls', 'bls')
         assert inject_dir is not None and isinstance(inject_dir, str)
         if self.object_info is None:
-            self.retrieve_object_data()
+            self.retrieve_object_data(inject_dir)
         if transit_template == 'tls':
             transit_template = 'default'
         elif transit_template == 'bls':
             transit_template = 'box'
-        print('\n STELLAR PROPERTIES FOR THE SIGNAL SEARCH')
-        print('================================================\n')
-        print('limb-darkening estimates using quadratic LD (a,b)=', self.ab)
-        print('mass =', format(self.mstar, '0.5f'))
-        print('mass_min =', format(self.mstar_min, '0.5f'))
-        print('mass_max =', format(self.mstar_max, '0.5f'))
-        print('radius =', format(self.rstar, '0.5f'))
-        print('radius_min =', format(self.rstar_min, '0.5f'))
-        print('radius_max =', format(self.rstar_max, '0.5f'))
-        reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'found', 'snr', 'sde', 'run'])
+        reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'duration_found', 'period_found', 'epoch_found',
+                                           'found', 'snr', 'sde', 'run'])
         for file in os.listdir(inject_dir):
-            if file.endswith(".csv"):
+            file_name_matches = re.search("P([0-9]+\\.[0-9])+_R([0-9]+\\.[0-9]+)_([0-9]+\\.[0-9]+)\\.csv", file)
+            if file_name_matches is not None:
                 try:
-                    period = float(re.search("P([0-9]+\\.[0-9]+)", file)[1])
-                    r_planet = float(re.search("R([0-9]+\\.[0-9]+)", file)[1])
-                    epoch = float(re.search("_([0-9]+\\.[0-9]+)\\.csv", file)[1])
+                    period = float(file_name_matches[1])
+                    r_planet = float(file_name_matches[2])
+                    epoch = float(file_name_matches[3])
                     df = pd.read_csv(inject_dir + file, float_precision='round_trip', sep=',',
                                      usecols=['#time', 'flux', 'flux_err'])
                     if len(df) == 0:
@@ -162,33 +173,39 @@ class MATRIX:
                         snr = 20
                         sde = 20
                         run = 1
-                        duration = 20
+                        duration_found = 20
+                        epoch_found = 0
+                        period_found = 0
                     else:
                         lc = lk.LightCurve(time=df['#time'], flux=df['flux'], flux_err=df['flux_err'])
                         clean_lc = lc.remove_nans().remove_outliers(sigma_lower=float('inf'),
                                                                  sigma_upper=3)  # remove outliers over 3sigma
                         flux = clean_lc.flux.value
                         time = clean_lc.time.value
-                        flux = self.__clean(clean_lc, detrend_period, detrend_period_method, custom_clean_algorithm)
-                        intransit = self.transit_masks(known_transits, time)
-                        found, snr, sde, run, duration = self.__search(time, flux, self.radius, self.radiusmin,
-                                                             self.radiusmax, self.mass, self.massmin,
-                                                             self.massmax, self.ab, intransit, epoch, period, 0.5,
-                                                             time[len(time) - 1] - time[0], snr_threshold, cores,
-                                                             transit_template, detrend_ws, self.transits_min_count,
-                                                             run_limit, custom_search_algorithm)
+                        flux = self.__clean(clean_lc, self.auto_detrend_period, self.auto_detrend_method,
+                                            custom_clean_algorithm)
+                        intransit = self.transit_masks(self.initial_transit_mask, time)
+                        found, snr, sde, run, duration_found, period_found, epoch_found = \
+                            self.__search(time, flux, self.radius, self.radiusmin,
+                                          self.radiusmax, self.mass, self.massmin,
+                                          self.massmax, self.ab, intransit, epoch, period, 0.5,
+                                          time[len(time) - 1] - time[0], snr_threshold, cores,
+                                          transit_template, detrend_ws, self.transits_min_count,
+                                          run_limit, custom_search_algorithm)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
-                                  "sde": sde, "run": run, "duration": duration}
-                    reports_df = reports_df.append(new_report)
+                                  "sde": sde, "run": run, "duration_found": duration_found,
+                                  "period_found": period_found, "epoch_found": epoch_found}
+                    reports_df = reports_df.append(new_report, ignore_index=True)
                     print("P=" + str(period) + ", R=" + str(r_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
                         found) +
                           " WITH SNR " + str(snr) + " AND SDE " + str(sde))
+                    reports_df = reports_df.sort_values(['period', 'radius', 'epoch'], ascending=[True, True, True])
                     reports_df.to_csv(inject_dir + "a_tls_report.csv", index=False)
                 except Exception as e:
                     traceback.print_exc()
                     print("File not valid: " + file)
-        tls_report_df = pd.read_csv(inject_dir + "a_tls_report.csv", float_precision='round_trip', sep=',',
-                                    usecols=['period', 'radius', 'epoch', 'found', 'duration', 'snr', 'sde', 'run'])
+        # tls_report_df = pd.read_csv(inject_dir + "a_tls_report.csv", float_precision='round_trip', sep=',',
+        #                             usecols=['period', 'radius', 'epoch', 'found', 'duration', 'snr', 'sde', 'run'])
         if sherlock_samples > 0:
             from sherlockpipe import sherlock
             from sherlockpipe.scoring.QuorumSnrBorderCorrectedSignalSelector import QuorumSnrBorderCorrectedSignalSelector
@@ -521,7 +538,7 @@ class MATRIX:
                     found_signal = True
                     break
             run = run + 1
-        return found_signal, results.snr, results.SDE, run, results.duration
+        return found_signal, results.snr, results.SDE, run, results.duration, results.period, results.T0
 
     def __equal(self, a, b, tolerance=0.01):
         return np.abs(a - b) < tolerance

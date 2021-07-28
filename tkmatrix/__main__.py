@@ -47,7 +47,8 @@ def get_star_info(properties, id):
     input_star_info = None
     if properties["STAR"] is not None and properties["STAR"][id] is not None:
         star_properties = properties["STAR"][id]
-        input_star_info = StarInfo(id, tuple(star_properties["LD_COEFFICIENTS"]) if "LD_COEFFICIENTS" in star_properties else None,
+        input_star_info = StarInfo(id,
+                            tuple(star_properties["LD_COEFFICIENTS"]) if "LD_COEFFICIENTS" in star_properties else None,
                              star_properties["TEFF"] if "TEFF" in star_properties else None,
                              star_properties["LUM"] if "LUM" in star_properties else None,
                              star_properties["LOGG"] if "LOGG" in star_properties else None,
@@ -66,7 +67,6 @@ def get_star_info(properties, id):
 if __name__ == '__main__':
     # We save the start time:
     start_time = datetime.datetime.now()
-
     current_path = os.path.dirname(os.path.realpath(__file__))
     ap = ArgumentParser(description='Sherlock Inject&Recovery tool')
     ap.add_argument('--dir', default="./", help="Working directory (if empty your current dir will be assumed)",
@@ -89,21 +89,39 @@ if __name__ == '__main__':
     star_info = get_star_info(matrix_user_properties, target)
     custom_search = extract_custom_class(matrix_user_properties["CUSTOM_SEARCH_ALGORITM"])
     custom_clean = extract_custom_class(matrix_user_properties["CUSTOM_CLEAN_ALGORITM"])
-
-    ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, args.preserve, star_info, file,
-                matrix_user_properties["EXPOSURE_TIME"])
+    prepare_algorithm = extract_custom_class(matrix_user_properties["PREPARE_ALGORITHM"])
+    detrend_cores = matrix_user_properties["DETREND_CORES"]
+    detrends_number = matrix_user_properties["DETRENDS_NUMBER"]
+    detrend_l_max = matrix_user_properties["DETREND_L_MAX"]
+    detrend_l_min = matrix_user_properties["DETREND_L_MIN"]
+    detrend_method = matrix_user_properties["DETREND_METHOD"]
+    initial_mask = matrix_user_properties["INITIAL_MASK"]
+    initial_smooth_enabled = matrix_user_properties["INITIAL_SMOOTH_ENABLED"]
+    initial_transit_mask = matrix_user_properties["INITIAL_TRANSIT_MASK"]
+    auto_detrend_period = matrix_user_properties["AUTO_DETREND_PERIOD"]
+    auto_detrend_ratio = matrix_user_properties["AUTO_DETREND_RATIO"]
+    auto_detrend_method = matrix_user_properties["AUTO_DETREND_METHOD"]
+    auto_detrend_enabled = matrix_user_properties["AUTO_DETREND_ENABLED"]
+    high_rms_bin_hours = matrix_user_properties["INITIAL_HIGH_RMS_BIN_HOURS"]
+    high_rms_threshold = matrix_user_properties["INITIAL_HIGH_RMS_THRESHOLD"]
+    high_rms_enabled = matrix_user_properties["INITIAL_HIGH_RMS_MASK"]
+    outliers_sigma = matrix_user_properties["OUTLIERS_SIGMA"]
+    exptime = matrix_user_properties["EXPOSURE_TIME"]
+    eleanor_corr_flux = matrix_user_properties["ELEANOR_CORRECTED_FLUX"]
+    ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, args.preserve, star_info, file, exptime,
+                initial_mask, initial_transit_mask, eleanor_corr_flux, outliers_sigma, high_rms_enabled,
+                high_rms_threshold, high_rms_bin_hours, initial_smooth_enabled, auto_detrend_enabled,
+                auto_detrend_method, auto_detrend_ratio, auto_detrend_period, prepare_algorithm)
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
                            matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEPS_PERIOD"],
                            matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
                            matrix_user_properties["STEPS_RADIUS"], matrix_user_properties["PERIOD_GRID_GEOM"],
                            matrix_user_properties["RADIUS_GRID_GEOM"])
     ir.recovery(matrix_user_properties["CPUS"], inject_dir, matrix_user_properties["SNR_THRESHOLD"],
-                matrix_user_properties["SHERLOCK_DEEPNESS"], matrix_user_properties["KNOWN_TRANSITS"],
+                matrix_user_properties["SHERLOCK_DEEPNESS"],
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
                 matrix_user_properties["RUN_LIMIT"],
-                matrix_user_properties["DETREND_PERIOD"], matrix_user_properties["DETREND_PERIOD_METHOD"],
                 custom_clean, custom_search)
     ir.plot_results(target, inject_dir, period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
                     radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"])
-    # print the execution time:
     print("Execution time: " + str(datetime.datetime.now() - start_time))
