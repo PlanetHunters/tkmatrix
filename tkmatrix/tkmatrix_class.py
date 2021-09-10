@@ -71,10 +71,9 @@ class MATRIX:
                                                        self.prepare_algorithm)
         if inject_dir is None:
             inject_dir = self.build_inject_dir()
-        self.lc, lc_data, star_info, self.transits_min_count, cadence, detrend_period, sectors = \
-            lcbuilder.build(self.object_info, inject_dir)
+        self.lc_build = lcbuilder.build(self.object_info, inject_dir)
         if self.star_info is None:
-            self.star_info = star_info
+            self.star_info = self.lc_build.star_info
         self.ab = self.star_info.ld_coefficients
         self.mass = self.star_info.mass
         self.massmin = self.star_info.mass_min
@@ -117,7 +116,7 @@ class MATRIX:
         assert max_period >= min_period
         assert max_radius >= min_radius
         inject_dir = self.retrieve_object_data()
-        lc_new = lk.LightCurve(time=self.lc.time, flux=self.lc.flux, flux_err=self.lc.flux_err)
+        lc_new = lk.LightCurve(time=self.lc_build.lc.time, flux=self.lc_build.lc.flux, flux_err=self.lc_build.lc.flux_err)
         clean = lc_new.remove_outliers(sigma_lower=float('inf'), sigma_upper=3)
         flux0 = clean.flux.value
         time = clean.time.value
@@ -190,7 +189,7 @@ class MATRIX:
                                           self.radiusmax, self.mass, self.massmin,
                                           self.massmax, self.ab, intransit, epoch, period, 0.5,
                                           time[len(time) - 1] - time[0], snr_threshold, cores,
-                                          transit_template, detrend_ws, self.transits_min_count,
+                                          transit_template, detrend_ws, self.lc_build.transits_min_count,
                                           run_limit, custom_search_algorithm)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run, "duration_found": duration_found,
