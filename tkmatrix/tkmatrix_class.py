@@ -145,7 +145,7 @@ class MATRIX:
 
     def recovery(self, cores, inject_dir, snr_threshold=5, sherlock_samples=0, detrend_ws=0,
                  transit_template='tls', run_limit=5,
-                 custom_clean_algorithm=None, custom_search_algorithm=None):
+                 custom_clean_algorithm=None, custom_search_algorithm=None, max_period_search=25):
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert cores is not None
         assert transit_template in ('tls', 'bls')
@@ -484,7 +484,7 @@ class MATRIX:
     def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
                  period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
                  run_limit, custom_search_algorithm):
-        tls_period_grid = self.__calculate_period_grid(time, min_period, max_period, None, self.star_info,
+        tls_period_grid = self.__calculate_period_grid(time, min_period, max_period, 3, self.star_info,
                                                    transits_min_count)
         if custom_search_algorithm is not None:
             return custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
