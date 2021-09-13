@@ -87,14 +87,9 @@ if __name__ == '__main__':
     target = matrix_user_properties["TARGET"]
     file = matrix_user_properties["FILE"]
     star_info = get_star_info(matrix_user_properties, target)
-    custom_search = extract_custom_class(matrix_user_properties["CUSTOM_SEARCH_ALGORITM"])
-    custom_clean = extract_custom_class(matrix_user_properties["CUSTOM_CLEAN_ALGORITM"])
+    custom_search = extract_custom_class(matrix_user_properties["CUSTOM_SEARCH_ALGORITHM"])
+    custom_clean = extract_custom_class(matrix_user_properties["CUSTOM_CLEAN_ALGORITHM"])
     prepare_algorithm = extract_custom_class(matrix_user_properties["PREPARE_ALGORITHM"])
-    detrend_cores = matrix_user_properties["DETREND_CORES"]
-    detrends_number = matrix_user_properties["DETRENDS_NUMBER"]
-    detrend_l_max = matrix_user_properties["DETREND_L_MAX"]
-    detrend_l_min = matrix_user_properties["DETREND_L_MIN"]
-    detrend_method = matrix_user_properties["DETREND_METHOD"]
     initial_mask = matrix_user_properties["INITIAL_MASK"]
     initial_smooth_enabled = matrix_user_properties["INITIAL_SMOOTH_ENABLED"]
     initial_transit_mask = matrix_user_properties["INITIAL_TRANSIT_MASK"]
