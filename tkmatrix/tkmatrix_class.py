@@ -10,7 +10,7 @@ from lcbuilder.objectinfo.preparer.MissionLightcurveBuilder import MissionLightc
 from lcbuilder.objectinfo.MissionObjectInfo import MissionObjectInfo
 import wotan
 from matplotlib.ticker import FormatStrFormatter
-from foldedleastsquares import transitleastsquares
+from foldedleastsquares import transitleastsquares, DefaultTransitTemplateGenerator
 from foldedleastsquares import transit_mask, cleaned_array
 import astropy.constants as ac
 import astropy.units as u
@@ -484,6 +484,8 @@ class MATRIX:
     def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
                  period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
                  run_limit, custom_search_algorithm):
+        tls_period_grid = self.__calculate_period_grid(time, min_period, max_period, None, self.star_info,
+                                                   transits_min_count)
         if custom_search_algorithm is not None:
             return custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                                                 ab, intransit, epoch, period, min_period, max_period, min_snr, cores,
@@ -491,11 +493,11 @@ class MATRIX:
         else:
             return self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
                      period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
-                              run_limit)
+                     run_limit, tls_period_grid)
 
     def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
                      period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
-                     run_limit):
+                     run_limit, tls_period_grid):
         snr = 1e12
         found_signal = False
         time = time[~intransit]
@@ -517,9 +519,10 @@ class MATRIX:
                                   period_min=min_period,
                                   period_max=max_period,
                                   n_transits_min=transits_min_count,
-                                  show_progress_bar=True,
+                                  show_progress_bar=False,
                                   use_threads=cores,
-                                  transit_template=transit_template
+                                  transit_template=transit_template,
+                                  period_grid=tls_period_grid
                                   )
             snr = results.snr
             if results.snr >= min_snr:
@@ -541,6 +544,20 @@ class MATRIX:
 
     def __equal(self, a, b, tolerance=0.01):
         return np.abs(a - b) < tolerance
+
+    def __calculate_period_grid(self, time, min_period, max_period, oversampling, star_info, transits_min_count):
+        dif = time[1:] - time[:-1]
+        jumps = np.where(dif > 1)[0]
+        jumps = np.append(jumps, len(time))
+        previous_jump_index = 0
+        time_span_all_sectors = 0
+        for jumpIndex in jumps:
+            time_chunk = time[previous_jump_index + 1:jumpIndex]  # ignoring first measurement as could be the last from the previous chunk
+            time_span_all_sectors = time_span_all_sectors + (time_chunk[-1] - time_chunk[0])
+            previous_jump_index = jumpIndex
+        return DefaultTransitTemplateGenerator() \
+            .period_grid(star_info.radius, star_info.mass, time[-1] - time[0], min_period, max_period, oversampling,
+                         transits_min_count, time_span_all_sectors)
 
     @staticmethod
     def num_of_zeros(n):
