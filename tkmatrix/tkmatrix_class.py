@@ -190,7 +190,7 @@ class MATRIX:
                                           self.massmax, self.ab, intransit, epoch, period, 0.5,
                                           max_period_search, snr_threshold, cores,
                                           transit_template, detrend_ws, self.lc_build.transits_min_count,
-                                          run_limit, custom_search_algorithm, max_period_search)
+                                          run_limit, custom_search_algorithm)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run, "duration_found": duration_found,
                                   "period_found": period_found, "epoch_found": epoch_found}
