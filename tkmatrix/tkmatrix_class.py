@@ -25,6 +25,7 @@ class MATRIX:
     MATRIX: Multi-phAse Transits Recovery from Injected eXoplanets
     """
     object_info = None
+    SDE_ROCHE = 2000
 
     def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None, exposure_time=None,
                  initial_mask=None, initial_transit_mask=None,
@@ -170,7 +171,7 @@ class MATRIX:
                     if len(df) == 0:
                         found = True
                         snr = 20
-                        sde = 20
+                        sde = self.SDE_ROCHE
                         run = 1
                         duration_found = 20
                         epoch_found = 0
@@ -405,7 +406,7 @@ class MATRIX:
     def plot_results(object_id, inject_dir, binning=1, xticks=None, yticks=None, period_grid_geom="lin",
                      radius_grid_geom="lin"):
         df = pd.read_csv(inject_dir + '/a_tls_report.csv', float_precision='round_trip', sep=',',
-                         usecols=['period', 'radius', 'found'])
+                         usecols=['period', 'radius', 'found', 'sde'])
         min_period = df["period"].min()
         max_period = df["period"].max()
         min_rad = df["radius"].min()
