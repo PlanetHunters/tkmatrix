@@ -88,7 +88,6 @@ if __name__ == '__main__':
     file = matrix_user_properties["FILE"]
     star_info = get_star_info(matrix_user_properties, target)
     custom_search = extract_custom_class(matrix_user_properties["CUSTOM_SEARCH_ALGORITHM"])
-    custom_clean = extract_custom_class(matrix_user_properties["CUSTOM_CLEAN_ALGORITHM"])
     prepare_algorithm = extract_custom_class(matrix_user_properties["PREPARE_ALGORITHM"])
     initial_mask = matrix_user_properties["INITIAL_MASK"]
     initial_smooth_enabled = matrix_user_properties["INITIAL_SMOOTH_ENABLED"]
@@ -97,26 +96,36 @@ if __name__ == '__main__':
     auto_detrend_ratio = matrix_user_properties["AUTO_DETREND_RATIO"]
     auto_detrend_method = matrix_user_properties["AUTO_DETREND_METHOD"]
     auto_detrend_enabled = matrix_user_properties["AUTO_DETREND_ENABLED"]
+    oscillation_reduction = matrix_user_properties["SIMPLE_OSCILLATIONS_REDUCTION"]
+    oscillation_min_snr = matrix_user_properties["OSCILLATIONS_MIN_SNR"]
+    oscillation_amplitude_threshold = matrix_user_properties["OSCILLATIONS_AMPLITUDE_THRESHOLD"]
+    oscillation_ws_percent = matrix_user_properties["OSCILLATIONS_WS_PERCENT"]
+    oscillation_min_period = matrix_user_properties["OSCILLATIONS_MIN_PERIOD"]
     high_rms_bin_hours = matrix_user_properties["INITIAL_HIGH_RMS_BIN_HOURS"]
     high_rms_threshold = matrix_user_properties["INITIAL_HIGH_RMS_THRESHOLD"]
     high_rms_enabled = matrix_user_properties["INITIAL_HIGH_RMS_MASK"]
     outliers_sigma = matrix_user_properties["OUTLIERS_SIGMA"]
     exptime = matrix_user_properties["EXPOSURE_TIME"]
     eleanor_corr_flux = matrix_user_properties["ELEANOR_CORRECTED_FLUX"]
+    cache_dir = matrix_user_properties["CACHE_DIR"]
+    if cache_dir is None:
+        cache_dir = os.path.expanduser('~') + "/"
     ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, args.preserve, star_info, file, exptime,
                 initial_mask, initial_transit_mask, eleanor_corr_flux, outliers_sigma, high_rms_enabled,
                 high_rms_threshold, high_rms_bin_hours, initial_smooth_enabled, auto_detrend_enabled,
-                auto_detrend_method, auto_detrend_ratio, auto_detrend_period, prepare_algorithm)
+                auto_detrend_method, auto_detrend_ratio, auto_detrend_period, prepare_algorithm, cache_dir,
+                oscillation_reduction, oscillation_min_snr, oscillation_amplitude_threshold, oscillation_ws_percent,
+                oscillation_min_period, matrix_user_properties["CPUS"])
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
                            matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEPS_PERIOD"],
                            matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
                            matrix_user_properties["STEPS_RADIUS"], matrix_user_properties["PERIOD_GRID_GEOM"],
                            matrix_user_properties["RADIUS_GRID_GEOM"])
-    ir.recovery(matrix_user_properties["CPUS"], inject_dir, matrix_user_properties["SNR_THRESHOLD"],
+    ir.recovery(inject_dir, matrix_user_properties["SNR_THRESHOLD"],
                 matrix_user_properties["SHERLOCK_DEEPNESS"],
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
                 matrix_user_properties["RUN_LIMIT"],
-                custom_clean, custom_search, matrix_user_properties["MAX_PERIOD_SEARCH"])
+                custom_search, matrix_user_properties["MAX_PERIOD_SEARCH"])
     ir.plot_results(target, inject_dir, period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
                     radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"])
     print("Execution time: " + str(datetime.datetime.now() - start_time))

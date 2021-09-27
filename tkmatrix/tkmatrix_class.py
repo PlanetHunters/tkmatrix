@@ -1,5 +1,8 @@
 import logging
+import multiprocessing
 import traceback
+from multiprocessing import Pool
+
 import numpy as np
 import ellc
 import matplotlib.pyplot as plt
@@ -19,6 +22,8 @@ import os
 import re
 import pandas as pd
 
+from tkmatrix.inject_model import InjectModel
+
 
 class MATRIX:
     """
@@ -32,7 +37,10 @@ class MATRIX:
                  eleanor_corr_flux='pca_flux', outliers_sigma=None, high_rms_enabled=True, high_rms_threshold=2.5,
                  high_rms_bin_hours=4, smooth_enabled=False,
                  auto_detrend_enabled=False, auto_detrend_method="cosine", auto_detrend_ratio=0.25,
-                 auto_detrend_period=None, prepare_algorithm=None):
+                 auto_detrend_period=None, prepare_algorithm=None, cache_dir=os.path.expanduser('~') + "/",
+                 oscillation_reduction=False, oscillation_min_snr=4, oscillation_amplitude_threshold=0.001,
+                 oscillation_ws_percent=0.01, oscillation_min_period=0.001, cores=multiprocessing.cpu_count() - 1
+                 ):
         assert target is not None and isinstance(target, str)
         assert sectors is not None and (sectors == 'all' or isinstance(sectors, list))
         assert exposure_time is not None and isinstance(exposure_time, (int, float))
@@ -57,22 +65,31 @@ class MATRIX:
         self.auto_detrend_method = auto_detrend_method
         self.auto_detrend_ratio = auto_detrend_ratio
         self.auto_detrend_period = auto_detrend_period
+        self.oscillation_reduction = oscillation_reduction
+        self.oscillation_min_snr = oscillation_min_snr
+        self.oscillation_amplitude_threshold = oscillation_amplitude_threshold
+        self.oscillation_ws_percent = oscillation_ws_percent
+        self.oscillation_min_period = oscillation_min_period
         self.prepare_algorithm = prepare_algorithm
+        self.cache_dir = cache_dir
+        self.cores = cores
 
     def retrieve_object_data(self, inject_dir=None):
         lcbuilder = LcBuilder()
         self.object_info = lcbuilder.build_object_info(self.id, None, self.sectors, self.file, self.exposure_time,
-                                                       self.initial_mask, self.initial_transit_mask,
+                                                       None, None,
                                                        self.star_info, None,
                                                        self.eleanor_corr_flux, self.outliers_sigma,
-                                                       self.high_rms_enabled, self.high_rms_threshold,
-                                                       self.high_rms_bin_hours, self.smooth_enabled,
-                                                       self.auto_detrend_enabled, self.auto_detrend_method,
+                                                       False, self.high_rms_threshold,
+                                                       self.high_rms_bin_hours, False,
+                                                       False, self.auto_detrend_method,
                                                        self.auto_detrend_ratio, self.auto_detrend_period,
-                                                       self.prepare_algorithm)
+                                                       self.prepare_algorithm, False,
+                                                       self.oscillation_min_snr, self.oscillation_amplitude_threshold,
+                                                       self.oscillation_ws_percent, self.oscillation_min_period)
         if inject_dir is None:
             inject_dir = self.build_inject_dir()
-        self.lc_build = lcbuilder.build(self.object_info, inject_dir)
+        self.lc_build = lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
         if self.star_info is None:
             self.star_info = self.lc_build.star_info
         self.ab = self.star_info.ld_coefficients
@@ -90,6 +107,21 @@ class MATRIX:
         self.rstar_min = self.star_info.radius_min * u.R_sun
         self.rstar_max = self.star_info.radius_max * u.R_sun
         return inject_dir
+
+    def retrieve_object_data_for_recovery(self, inject_dir, recovery_file):
+        lcbuilder = LcBuilder()
+        self.object_info = lcbuilder.build_object_info(self.id, None, None, recovery_file, self.exposure_time,
+                                                       self.initial_mask, self.initial_transit_mask,
+                                                       self.star_info, None,
+                                                       self.eleanor_corr_flux, self.outliers_sigma,
+                                                       self.high_rms_enabled, self.high_rms_threshold,
+                                                       self.high_rms_bin_hours, self.smooth_enabled,
+                                                       self.auto_detrend_enabled, self.auto_detrend_method,
+                                                       self.auto_detrend_ratio, self.auto_detrend_period,
+                                                       self.prepare_algorithm, self.oscillation_reduction,
+                                                       self.oscillation_min_snr, self.oscillation_amplitude_threshold,
+                                                       self.oscillation_ws_percent, self.oscillation_min_period)
+        self.lc_build = lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
 
     def build_inject_dir(self):
         inject_dir = self.dir + "/" + self.object_info.mission_id().replace(" ", "") + "_ir/"
@@ -117,42 +149,30 @@ class MATRIX:
         assert max_period >= min_period
         assert max_radius >= min_radius
         inject_dir = self.retrieve_object_data()
-        lc_new = lk.LightCurve(time=self.lc_build.lc.time, flux=self.lc_build.lc.flux, flux_err=self.lc_build.lc.flux_err)
-        clean = lc_new.remove_outliers(sigma_lower=float('inf'), sigma_upper=3)
-        flux0 = clean.flux.value
-        time = clean.time.value
-        flux_err = clean.flux_err.value
+        flux0 = self.lc_build.lc.flux.value
+        time = self.lc_build.lc.time.value
+        flux_err = self.lc_build.lc.flux_err.value
         period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
             else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
         radius_grid = np.linspace(min_radius, max_radius, steps_radius) if radius_grid_geom == "lin" \
             else np.logspace(np.log10(min_radius), np.log10(max_radius), steps_period)
+        inject_models = []
         for period in period_grid:
             for t0 in np.arange(time[60], time[60] + period - 0.1, period / phases):
                 for rplanet in radius_grid:
                     rplanet = np.around(rplanet, decimals=2) * u.R_earth
-                    print('\n')
-                    print('P = ' + str(period) + ' days, Rp = ' + str(rplanet) + ", T0 = " + str(t0))
-                    time_model, flux_model, flux_err_model = self.__make_model(time, flux0, flux_err, self.rstar,
-                                                                               self.mstar, t0, period, rplanet,
-                                                                               self.exposure_time)
-                    file_name = os.path.join(inject_dir + '/P' + str(period) + '_R' + str(rplanet.value) + '_' + str(t0) +
-                                             '.csv')
-                    lc_df = pd.DataFrame(columns=['#time', 'flux', 'flux_err'])
-                    lc_df['#time'] = time_model
-                    lc_df['flux'] = flux_model
-                    lc_df['flux_err'] = flux_err_model
-                    lc_df.to_csv(file_name, index=False)
+                    inject_models.append(InjectModel(inject_dir, time, flux0, flux_err, self.rstar, self.mstar, t0,
+                                                     period, rplanet, self.exposure_time, self.ab))
+        with Pool(processes=self.cores) as pool:
+            pool.map(InjectModel.make_model, inject_models)
         return inject_dir
 
-    def recovery(self, cores, inject_dir, snr_threshold=5, sherlock_samples=0, detrend_ws=0,
-                 transit_template='tls', run_limit=5,
-                 custom_clean_algorithm=None, custom_search_algorithm=None, max_period_search=25):
+
+    def recovery(self, inject_dir, snr_threshold=5, sherlock_samples=0, detrend_ws=0,
+                 transit_template='tls', run_limit=5, custom_search_algorithm=None, max_period_search=25):
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
-        assert cores is not None
         assert transit_template in ('tls', 'bls')
         assert inject_dir is not None and isinstance(inject_dir, str)
-        if self.object_info is None:
-            self.retrieve_object_data(inject_dir)
         if transit_template == 'tls':
             transit_template = 'default'
         elif transit_template == 'bls':
@@ -177,19 +197,14 @@ class MATRIX:
                         epoch_found = 0
                         period_found = 0
                     else:
-                        lc = lk.LightCurve(time=df['#time'], flux=df['flux'], flux_err=df['flux_err'])
-                        clean_lc = lc.remove_nans().remove_outliers(sigma_lower=float('inf'),
-                                                                 sigma_upper=3)  # remove outliers over 3sigma
-                        flux = clean_lc.flux.value
-                        time = clean_lc.time.value
-                        flux = self.__clean(clean_lc, self.auto_detrend_period, self.auto_detrend_method,
-                                            custom_clean_algorithm)
-                        intransit = self.transit_masks(self.initial_transit_mask, time)
+                        self.retrieve_object_data_for_recovery(inject_dir, inject_dir + file)
+                        flux = self.lc_build.lc.flux.value
+                        time = self.lc_build.lc.time.value
                         found, snr, sde, run, duration_found, period_found, epoch_found = \
                             self.__search(time, flux, self.radius, self.radiusmin,
                                           self.radiusmax, self.mass, self.massmin,
-                                          self.massmax, self.ab, intransit, epoch, period, 0.5,
-                                          max_period_search, snr_threshold, cores,
+                                          self.massmax, self.ab, epoch, period, 0.5,
+                                          max_period_search, snr_threshold,
                                           transit_template, detrend_ws, self.lc_build.transits_min_count,
                                           run_limit, custom_search_algorithm)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
@@ -323,49 +338,6 @@ class MATRIX:
                 if file.endswith(".csv") and file.startswith("P"):
                     os.remove(inject_dir + file)
 
-    def __make_model(self, time, flux, flux_err, rstar, mstar, epoch, period, rplanet,exposure_time):
-        P1 = period * u.day
-        a = np.cbrt((ac.G * mstar * P1 ** 2) / (4 * np.pi ** 2)).to(u.au)
-        texpo = exposure_time / 60. / 60. / 24.
-        model = ellc.lc(
-            t_obs=time,
-            radius_1=rstar.to(u.au) / a,  # star radius convert from AU to in units of a
-            radius_2=rplanet.to(u.au) / a,  # convert from Rearth (equatorial) into AU and then into units of a
-            sbratio=0,
-            incl=90,
-            light_3=0,
-            t_zero=epoch,
-            period=period,
-            a=None,
-            q=1e-6,
-            f_c=None, f_s=None,
-            ldc_1=self.ab, ldc_2=None,
-            gdc_1=None, gdc_2=None,
-            didt=None,
-            domdt=None,
-            rotfac_1=1, rotfac_2=1,
-            hf_1=1.5, hf_2=1.5,
-            bfac_1=None, bfac_2=None,
-            heat_1=None, heat_2=None,
-            lambda_1=None, lambda_2=None,
-            vsini_1=None, vsini_2=None,
-            t_exp=texpo, n_int=None,
-            grid_1='default', grid_2='default',
-            ld_1='quad', ld_2=None,
-            shape_1='sphere', shape_2='sphere',
-            spots_1=None, spots_2=None,
-            exact_grav=False, verbose=1)
-        if model[0] > 0:
-            flux_t = flux + model - 1.
-            result_flux = flux_t
-            result_flux_err = flux_err
-            result_time = time
-        else:
-            result_flux = []
-            result_time = []
-            result_flux_err = []
-        return result_time, result_flux, result_flux_err
-
     def transit_masks(self, transit_masks, time):
         if transit_masks is None:
             transit_masks = []
@@ -482,27 +454,25 @@ class MATRIX:
         # plt.savefig(inject_dir + '/inj-rec.png', bbox_inches='tight', dpi=200)
         # plt.close()
 
-    def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
-                 period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
+    def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
+                 period, min_period, max_period, min_snr, transit_template, ws, transits_min_count,
                  run_limit, custom_search_algorithm):
         tls_period_grid = self.__calculate_period_grid(time, min_period, max_period, 3, self.star_info,
                                                    transits_min_count)
         if custom_search_algorithm is not None:
             return custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
-                                                ab, intransit, epoch, period, min_period, max_period, min_snr, cores,
+                                                ab, epoch, period, min_period, max_period, min_snr, self.cores,
                                                 transit_template, ws, transits_min_count, run_limit)
         else:
-            return self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
-                     period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
+            return self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
+                     period, min_period, max_period, min_snr, self.cores, transit_template, ws, transits_min_count,
                      run_limit, tls_period_grid)
 
-    def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, intransit, epoch,
+    def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                      period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
                      run_limit, tls_period_grid):
         snr = 1e12
         found_signal = False
-        time = time[~intransit]
-        flux = flux[~intransit]
         time, flux = cleaned_array(time, flux)
         run = 0
         if ws > 0:
