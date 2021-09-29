@@ -31,6 +31,7 @@ class MATRIX:
     """
     object_info = None
     SDE_ROCHE = 2000
+    lcbuilder = LcBuilder()
 
     def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None, exposure_time=None,
                  initial_mask=None, initial_transit_mask=None,
@@ -75,8 +76,7 @@ class MATRIX:
         self.cores = cores
 
     def retrieve_object_data(self, inject_dir=None):
-        lcbuilder = LcBuilder()
-        self.object_info = lcbuilder.build_object_info(self.id, None, self.sectors, self.file, self.exposure_time,
+        self.object_info = self.lcbuilder.build_object_info(self.id, None, self.sectors, self.file, self.exposure_time,
                                                        None, None,
                                                        self.star_info, None,
                                                        self.eleanor_corr_flux, self.outliers_sigma,
@@ -89,7 +89,7 @@ class MATRIX:
                                                        self.oscillation_ws_percent, self.oscillation_min_period)
         if inject_dir is None:
             inject_dir = self.build_inject_dir()
-        self.lc_build = lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
+        self.lc_build = self.lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
         if self.star_info is None:
             self.star_info = self.lc_build.star_info
         self.ab = self.star_info.ld_coefficients
@@ -109,8 +109,7 @@ class MATRIX:
         return inject_dir
 
     def retrieve_object_data_for_recovery(self, inject_dir, recovery_file):
-        lcbuilder = LcBuilder()
-        self.object_info = lcbuilder.build_object_info(self.id, None, None, recovery_file, self.exposure_time,
+        self.object_info = self.lcbuilder.build_object_info(self.id, None, None, recovery_file, self.exposure_time,
                                                        self.initial_mask, self.initial_transit_mask,
                                                        self.star_info, None,
                                                        self.eleanor_corr_flux, self.outliers_sigma,
@@ -121,7 +120,7 @@ class MATRIX:
                                                        self.prepare_algorithm, self.oscillation_reduction,
                                                        self.oscillation_min_snr, self.oscillation_amplitude_threshold,
                                                        self.oscillation_ws_percent, self.oscillation_min_period)
-        self.lc_build = lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
+        self.lc_build = self.lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
 
     def build_inject_dir(self):
         inject_dir = self.dir + "/" + self.object_info.mission_id().replace(" ", "") + "_ir/"
@@ -198,10 +197,8 @@ class MATRIX:
                         period_found = 0
                     else:
                         self.retrieve_object_data_for_recovery(inject_dir, inject_dir + file)
-                        flux = self.lc_build.lc.flux.value
-                        time = self.lc_build.lc.time.value
                         found, snr, sde, run, duration_found, period_found, epoch_found = \
-                            self.__search(time, flux, self.radius, self.radiusmin,
+                            self.__search(self.lc_build.lc.time.value, self.lc_build.lc.flux.value, self.radius, self.radiusmin,
                                           self.radiusmax, self.mass, self.massmin,
                                           self.massmax, self.ab, epoch, period, 0.5,
                                           max_period_search, snr_threshold,
