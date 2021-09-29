@@ -101,6 +101,7 @@ if __name__ == '__main__':
     oscillation_amplitude_threshold = matrix_user_properties["OSCILLATIONS_AMPLITUDE_THRESHOLD"]
     oscillation_ws_percent = matrix_user_properties["OSCILLATIONS_WS_PERCENT"]
     oscillation_min_period = matrix_user_properties["OSCILLATIONS_MIN_PERIOD"]
+    oscillation_max_period = matrix_user_properties["OSCILLATIONS_MAX_PERIOD"]
     high_rms_bin_hours = matrix_user_properties["INITIAL_HIGH_RMS_BIN_HOURS"]
     high_rms_threshold = matrix_user_properties["INITIAL_HIGH_RMS_THRESHOLD"]
     high_rms_enabled = matrix_user_properties["INITIAL_HIGH_RMS_MASK"]
@@ -115,7 +116,7 @@ if __name__ == '__main__':
                 high_rms_threshold, high_rms_bin_hours, initial_smooth_enabled, auto_detrend_enabled,
                 auto_detrend_method, auto_detrend_ratio, auto_detrend_period, prepare_algorithm, cache_dir,
                 oscillation_reduction, oscillation_min_snr, oscillation_amplitude_threshold, oscillation_ws_percent,
-                oscillation_min_period, matrix_user_properties["CPUS"])
+                oscillation_min_period, oscillation_max_period, matrix_user_properties["CPUS"])
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
                            matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEPS_PERIOD"],
                            matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],

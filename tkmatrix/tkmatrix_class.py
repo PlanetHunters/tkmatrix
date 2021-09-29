@@ -33,6 +33,7 @@ class MATRIX:
     object_info = None
     SDE_ROCHE = 2000
     lcbuilder = LcBuilder()
+    MIN_SEARCH_PERIOD = 0.5
 
     def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None, exposure_time=None,
                  initial_mask=None, initial_transit_mask=None,
@@ -41,7 +42,8 @@ class MATRIX:
                  auto_detrend_enabled=False, auto_detrend_method="cosine", auto_detrend_ratio=0.25,
                  auto_detrend_period=None, prepare_algorithm=None, cache_dir=os.path.expanduser('~') + "/",
                  oscillation_reduction=False, oscillation_min_snr=4, oscillation_amplitude_threshold=0.001,
-                 oscillation_ws_percent=0.01, oscillation_min_period=0.001, cores=multiprocessing.cpu_count() - 1
+                 oscillation_ws_percent=0.01, oscillation_min_period=0.002, oscillation_max_period=0.002,
+                 cores=multiprocessing.cpu_count() - 1
                  ):
         assert target is not None and isinstance(target, str)
         assert sectors is not None and (sectors == 'all' or isinstance(sectors, list))
@@ -72,6 +74,7 @@ class MATRIX:
         self.oscillation_amplitude_threshold = oscillation_amplitude_threshold
         self.oscillation_ws_percent = oscillation_ws_percent
         self.oscillation_min_period = oscillation_min_period
+        self.oscillation_max_period = oscillation_max_period
         self.prepare_algorithm = prepare_algorithm
         self.cache_dir = cache_dir
         self.cores = cores
@@ -87,7 +90,8 @@ class MATRIX:
                                                        self.auto_detrend_ratio, self.auto_detrend_period,
                                                        self.prepare_algorithm, False,
                                                        self.oscillation_min_snr, self.oscillation_amplitude_threshold,
-                                                       self.oscillation_ws_percent, self.oscillation_min_period)
+                                                       self.oscillation_ws_percent, self.oscillation_min_period,
+                                                       self.oscillation_max_period)
         if inject_dir is None:
             inject_dir = self.build_inject_dir()
         self.lc_build = self.lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
@@ -122,6 +126,10 @@ class MATRIX:
                                                        self.prepare_algorithm, self.oscillation_reduction,
                                                        self.oscillation_min_snr, self.oscillation_amplitude_threshold,
                                                        self.oscillation_ws_percent, self.oscillation_min_period)
+
+        if self.object_info.reduce_simple_oscillations and self.object_info.oscillation_max_period is None:
+            logging.info("Stellar oscillation period has been set to empty. Defaulting to 1/3 the minimum search period")
+            self.object_info.oscillation_max_period = self.MIN_SEARCH_PERIOD / 3
         self.lc_build = self.lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
 
     def build_inject_dir(self):
@@ -215,7 +223,7 @@ class MATRIX:
                         found, snr, sde, run, duration_found, period_found, epoch_found = \
                             self.__search(self.lc_build.lc.time.value, self.lc_build.lc.flux.value, self.radius, self.radiusmin,
                                           self.radiusmax, self.mass, self.massmin,
-                                          self.massmax, self.ab, epoch, period, 0.5,
+                                          self.massmax, self.ab, epoch, period, self.MIN_SEARCH_PERIOD,
                                           max_period_search, snr_threshold,
                                           transit_template, detrend_ws, self.lc_build.transits_min_count,
                                           run_limit, custom_search_algorithm)
