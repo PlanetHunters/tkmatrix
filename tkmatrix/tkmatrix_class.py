@@ -127,7 +127,8 @@ class MATRIX:
                                                        self.oscillation_min_snr, self.oscillation_amplitude_threshold,
                                                        self.oscillation_ws_percent, self.oscillation_min_period)
 
-        if self.object_info.reduce_simple_oscillations and self.object_info.oscillation_max_period is None:
+        if self.object_info.reduce_simple_oscillations and \
+                self.object_info.oscillation_max_period < self.object_info.oscillation_min_period is None:
             logging.info("Stellar oscillation period has been set to empty. Defaulting to 1/3 the minimum search period")
             self.object_info.oscillation_max_period = self.MIN_SEARCH_PERIOD / 3
         self.lc_build = self.lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
