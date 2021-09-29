@@ -1,5 +1,6 @@
 import logging
 import multiprocessing
+import sys
 import traceback
 from multiprocessing import Pool
 
@@ -109,6 +110,7 @@ class MATRIX:
         return inject_dir
 
     def retrieve_object_data_for_recovery(self, inject_dir, recovery_file):
+        self.__setup_logging(inject_dir)
         self.object_info = self.lcbuilder.build_object_info(self.id, None, None, recovery_file, self.exposure_time,
                                                        self.initial_mask, self.initial_transit_mask,
                                                        self.star_info, None,
@@ -124,17 +126,30 @@ class MATRIX:
 
     def build_inject_dir(self):
         inject_dir = self.dir + "/" + self.object_info.mission_id().replace(" ", "") + "_ir/"
-        if os.path.isdir(inject_dir):
-            folder_list = sorted([x[0] for x in os.walk(self.dir) if x[0].find(self.object_info.mission_id().replace(" ", "")) > 0], key=os.path.getmtime)
-            last_element = folder_list[len(folder_list)-1]
-            last_number_index = last_element.rfind("_")
-            number = last_element[last_number_index+1:len(last_element)]
-            if number.isdigit():
-                inject_dir = self.dir + "/" + inject_dir[:-1] + "_" + str(int(number) + 1) + "/"
-            else:
-                inject_dir = self.dir + "/" + inject_dir[:-1] + "_1/"
+        index = 0
+        while os.path.exists(inject_dir) or os.path.isdir(inject_dir):
+            inject_dir = self.dir + "/" + self.object_info.mission_id().replace(" ", "") + "_ir_" + str(index) + "/"
+            index = index + 1
         os.mkdir(inject_dir)
+        self.__setup_logging(inject_dir)
         return inject_dir
+
+    def __setup_logging(self, inject_dir):
+        file_dir = inject_dir + "matrix.log"
+        formatter = logging.Formatter('%(message)s')
+        logger = logging.getLogger()
+        while len(logger.handlers) > 0:
+            logger.handlers.pop()
+        logger.setLevel(logging.INFO)
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        handler = logging.FileHandler(file_dir)
+        handler.setLevel(logging.INFO)
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        logging.info("Setup injection directory")
 
     def inject(self, phases, min_period, max_period, steps_period, min_radius, max_radius, steps_radius,
                period_grid_geom="lin", radius_grid_geom="lin"):
@@ -196,7 +211,7 @@ class MATRIX:
                         epoch_found = 0
                         period_found = 0
                     else:
-                        self.retrieve_object_data_for_recovery(inject_dir, inject_dir + file)
+                        self.retrieve_object_data_for_recovery(inject_dir + "/", inject_dir + file)
                         found, snr, sde, run, duration_found, period_found, epoch_found = \
                             self.__search(self.lc_build.lc.time.value, self.lc_build.lc.flux.value, self.radius, self.radiusmin,
                                           self.radiusmax, self.mass, self.massmin,
