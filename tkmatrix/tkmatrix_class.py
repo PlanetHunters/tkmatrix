@@ -451,30 +451,68 @@ class MATRIX:
         plt.savefig(inject_dir + '/inj-rec.png', bbox_inches='tight', dpi=200)
         plt.close()
 
-        # period_grid = np.linspace(min_period, max_period, len(df["period"].unique()))
-        # radius_grid = np.round(np.linspace(min_rad, max_rad, len(df["radius"].unique())), 2)
-        # bins = [period_grid, radius_grid]
-        # h1, x, y = np.histogram2d(df['period'][df['found'] == 1], df['radius'][df['found'] == 1], bins=bins)
-        # h2, x, y = np.histogram2d(df['period'][df['found'] == 0], df['radius'][df['found'] == 0], bins=bins)
-        # normed_hist = (100. * h1 / (h1 + h2))
-        # fig, ax = plt.subplots(figsize=(2.7 * 5, 5))
-        # im = plt.imshow(normed_hist.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), interpolation='none',
-        #                 aspect='auto', cmap='viridis', vmin=0, vmax=100, rasterized=True)
-        # plt.colorbar(im, label='Recovery rate (%)')
-        # plt.xlabel('Injected period (days)')
-        # plt.ylabel(r'Injected radius (R$_\oplus$)')
-        # ax.set_title(object_id + " - P/R recovery (" + str(phases) + " " + phases_str + ")")
-        # if xticks is not None:
-        #     plt.xticks(xticks)
-        # else:
-        #     period_ticks_decimals = MATRIX.num_of_zeros(max_period - min_period) + 1
-        #     plot_bins = 10 if 10 < len(period_grid) else len(period_grid)
-        #     plt.locator_params(axis="x", nbins=plot_bins)
-        #     ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
-        # if yticks is not None:
-        #     plt.xticks(yticks)
-        # plt.savefig(inject_dir + '/inj-rec.png', bbox_inches='tight', dpi=200)
-        # plt.close()
+    @staticmethod
+    def plot_diff(object_id, inject_dir1, inject_dir2, output_dir, binning=1, xticks=None, yticks=None,
+                  period_grid_geom="lin", radius_grid_geom="lin"):
+        df1 = pd.read_csv(inject_dir1 + '/a_tls_report.csv', float_precision='round_trip', sep=',',
+                         usecols=['period', 'radius', 'found', 'sde'])
+        df2 = pd.read_csv(inject_dir2 + '/a_tls_report.csv', float_precision='round_trip', sep=',',
+                         usecols=['period', 'radius', 'found', 'sde'])
+        min_period = df1["period"].min()
+        max_period = df1["period"].max()
+        min_rad = df1["radius"].min()
+        max_rad = df1["radius"].max()
+        phases = len(df1[df1["period"] == df1["period"].min()][df1["radius"] == df1["radius"].min()])
+        phases_str = "phase" if phases == 1 else "phases"
+        bin_nums = int(np.ceil(len(df1["period"].unique()) / binning))
+        if period_grid_geom == 'lin':
+            step_period = (max_period - min_period) / (len(df1["period"].unique()) - 1)
+            step_period = step_period * binning
+            if step_period <= 0:
+                step_period = 0.1
+            period_grid = np.linspace(min_period, max_period, bin_nums)\
+                if max_period - min_period > 0 else np.full((1), min_period)
+        else:
+            period_grid = np.logspace(np.log10(min_period), np.log10(max_period), bin_nums)
+        bin_nums = int(np.ceil(len(df1["radius"].unique()) / binning))
+        if radius_grid_geom == 'lin':
+            step_radius = (max_rad - min_rad) / (len(df1["radius"].unique()) - 1)
+            step_radius = step_radius * binning
+            if step_radius <= 0:
+                step_radius = 0.1
+            radius_grid = np.round(np.linspace(min_rad, max_rad, bin_nums), 2)\
+                if max_rad - min_rad > 0 else np.full((1), min_rad)
+        else:
+            radius_grid = np.round(np.logspace(np.log10(min_rad), np.log10(max_rad), 2), bin_nums)
+        f = len(period_grid) / len(radius_grid)
+        bins = [period_grid, radius_grid]
+        h11, x1, y1 = np.histogram2d(df1['period'][df1['found'] == 1], df1['radius'][df1['found'] == 1], bins=bins)
+        h12, x1, y1 = np.histogram2d(df1['period'][df1['found'] == 0], df1['radius'][df1['found'] == 0], bins=bins)
+        h21, x2, y2 = np.histogram2d(df2['period'][df2['found'] == 1], df2['radius'][df2['found'] == 1], bins=bins)
+        h22, x2, y2 = np.histogram2d(df2['period'][df2['found'] == 0], df2['radius'][df2['found'] == 0], bins=bins)
+        h1 = h11 - h12
+        h2 = h21 - h22
+        normed_hist1 = phases * h11 / (h11 + h12)
+        normed_hist2 = phases * h21 / (h21 + h22)
+        normed_hist = normed_hist1 - normed_hist2
+        fig, ax = plt.subplots(figsize=(2.7 * 5, 5))
+        im = plt.imshow(normed_hist.T, origin='lower', extent=(x1[0], x1[-1], y1[0], y1[-1]), interpolation='none',
+                        aspect='auto', cmap='viridis', vmin=-phases, vmax=phases, rasterized=True)
+        plt.colorbar(im, label='# Found samples diff.')
+        plt.xlabel('Injected period (days)')
+        plt.ylabel(r'Injected radius (R$_\oplus$)')
+        ax.set_title(object_id + " - P/R recovery diff(" + str(phases) + " " + phases_str + ")")
+        if xticks is not None:
+            plt.xticks(xticks)
+        else:
+            period_ticks_decimals = MATRIX.num_of_zeros(max_period - min_period) + 1
+            plot_bins = 10 if 10 < len(period_grid) else len(period_grid)
+            plt.locator_params(axis="x", nbins=plot_bins)
+            ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
+        if yticks is not None:
+            plt.xticks(yticks)
+        plt.savefig(output_dir + '/inj-rec-diff.png', bbox_inches='tight', dpi=200)
+        plt.close()
 
     def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                  period, min_period, max_period, min_snr, transit_template, ws, transits_min_count,
