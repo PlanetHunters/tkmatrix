@@ -12,6 +12,7 @@ if ! [[ -z ${tests_results} ]]; then
   git commit -m "Preparing release ${git_tag}"
   git tag ${git_tag} -m "New release"
   git push
+  git push --tags
   python3 setup.py sdist bdist_wheel
   python3 -m twine upload dist/*
 else
