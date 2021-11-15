@@ -204,7 +204,7 @@ class MATRIX:
         reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'duration_found', 'period_found', 'epoch_found',
                                            'found', 'snr', 'sde', 'run'])
         for file in sorted(os.listdir(inject_dir)):
-            file_name_matches = re.search("P([0-9]+\\.[0-9])+_R([0-9]+\\.[0-9]+)_([0-9]+\\.[0-9]+)\\.csv", file)
+            file_name_matches = re.search("P([0-9]+\\.[0-9]+)+_R([0-9]+\\.[0-9]+)_([0-9]+\\.[0-9]+)\\.csv", file)
             if file_name_matches is not None:
                 try:
                     period = float(file_name_matches[1])
