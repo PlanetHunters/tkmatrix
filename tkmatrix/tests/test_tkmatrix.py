@@ -16,7 +16,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
-            self.assertEquals(5, len(os.listdir(inject_dir)))
+            self.assertEquals(7, len(os.listdir(inject_dir)))
             self.assertEquals([1], matrix.sectors)
             self.assertAlmostEqual(0.47, matrix.mass, 2)
             self.assertAlmostEqual(0.44, matrix.massmin, 2)
@@ -35,7 +35,7 @@ class TestsMatrix(unittest.TestCase):
             self.assertEquals(".", matrix.dir)
             matrix.recovery(inject_dir, 5, 0)
             matrix.plot_results(target, inject_dir)
-            self.assertEquals(8, len(os.listdir(inject_dir)))
+            self.assertEquals(11, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
@@ -48,7 +48,7 @@ class TestsMatrix(unittest.TestCase):
             inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
             matrix.recovery(inject_dir, 5, 0)
             matrix.plot_results(target, inject_dir)
-            self.assertEquals(9, len(os.listdir(inject_dir)))
+            self.assertEquals(12, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
@@ -59,7 +59,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5.1, 2, 3, 3.1, 2)
-            self.assertEquals(8, len(os.listdir(inject_dir)))
+            self.assertEquals(10, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
@@ -70,7 +70,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir = matrix.inject(2, 5, 5, 1, 3, 3, 1)
-            self.assertEquals(6, len(os.listdir(inject_dir)))
+            self.assertEquals(8, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
@@ -141,9 +141,9 @@ class TestsMatrix(unittest.TestCase):
             self.assertTrue(os.path.isdir(inject_dir2))
         finally:
             if inject_dir1 is not None:
-                shutil.rmtree(inject_dir1)
+                shutil.rmtree(inject_dir1, ignore_errors=True)
             if inject_dir2 is not None:
-                shutil.rmtree(inject_dir2)
+                shutil.rmtree(inject_dir2, ignore_errors=True)
 
     def test_star_info(self):
         target = "TIC 220513363"
@@ -152,7 +152,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
-            self.assertEquals(5, len(os.listdir(inject_dir)))
+            self.assertEquals(7, len(os.listdir(inject_dir)))
             self.assertEquals((0.2, 0.5), matrix.star_info.ld_coefficients)
             self.assertEquals(2000, matrix.star_info.teff)
             self.assertAlmostEqual(0.7, matrix.star_info.mass)
@@ -168,7 +168,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
-            self.assertEquals(5, len(os.listdir(inject_dir)))
+            self.assertEquals(7, len(os.listdir(inject_dir)))
             self.assertEquals((0.1258, 0.235), matrix.star_info.ld_coefficients)
             self.assertEquals(31000.0, matrix.star_info.teff)
             self.assertAlmostEqual(0.47, matrix.star_info.mass)
