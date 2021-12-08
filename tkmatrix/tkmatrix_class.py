@@ -115,7 +115,7 @@ class MATRIX:
 
     def retrieve_object_data_for_recovery(self, inject_dir, recovery_file):
         self.__setup_logging(inject_dir)
-        self.object_info = self.lcbuilder.build_object_info(self.id, None, None, recovery_file, self.exposure_time,
+        self.object_info = self.lcbuilder.build_object_info("", None, None, recovery_file, self.exposure_time,
                                                        self.initial_mask, self.initial_transit_mask,
                                                        self.star_info, None,
                                                        self.eleanor_corr_flux, self.outliers_sigma,
