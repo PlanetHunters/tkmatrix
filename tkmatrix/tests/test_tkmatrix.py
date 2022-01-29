@@ -33,7 +33,7 @@ class TestsMatrix(unittest.TestCase):
             self.assertAlmostEqual(0.076, matrix.rstar_min.value, 3)
             self.assertAlmostEqual(0.284, matrix.rstar_max.value, 3)
             self.assertEquals(".", matrix.dir)
-            matrix.recovery(inject_dir, 5, 0)
+            matrix.recovery(inject_dir, 5, 0, oversampling=0.1)
             matrix.plot_results(target, inject_dir)
             self.assertEquals(11, len(os.listdir(inject_dir)))
         finally:
@@ -46,7 +46,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
-            matrix.recovery(inject_dir, 5, 0)
+            matrix.recovery(inject_dir, 5, 0, oversampling=0.1)
             matrix.plot_results(target, inject_dir)
             self.assertEquals(12, len(os.listdir(inject_dir)))
         finally:

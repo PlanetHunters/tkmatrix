@@ -7,6 +7,7 @@ from multiprocessing import Pool
 import numpy as np
 import ellc
 import matplotlib.pyplot as plt
+from lcbuilder.helper import LcbuilderHelper
 from lcbuilder.lcbuilder_class import LcBuilder
 from lcbuilder.objectinfo.InputObjectInfo import InputObjectInfo
 from lcbuilder.objectinfo.MissionInputObjectInfo import MissionInputObjectInfo
@@ -193,7 +194,8 @@ class MATRIX:
 
 
     def recovery(self, inject_dir, snr_threshold=5, sherlock_samples=0, detrend_ws=0,
-                 transit_template='tls', run_limit=5, custom_search_algorithm=None, max_period_search=25):
+                 transit_template='tls', run_limit=5, custom_search_algorithm=None, max_period_search=25,
+                 oversampling=3):
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert transit_template in ('tls', 'bls')
         assert inject_dir is not None and isinstance(inject_dir, str)
@@ -228,7 +230,7 @@ class MATRIX:
                                           self.massmax, self.ab, epoch, period, self.MIN_SEARCH_PERIOD,
                                           max_period_search, snr_threshold,
                                           transit_template, detrend_ws, self.lc_build.transits_min_count,
-                                          run_limit, custom_search_algorithm)
+                                          run_limit, custom_search_algorithm, oversampling)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run, "duration_found": duration_found,
                                   "period_found": period_found, "epoch_found": epoch_found}
@@ -516,9 +518,10 @@ class MATRIX:
 
     def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                  period, min_period, max_period, min_snr, transit_template, ws, transits_min_count,
-                 run_limit, custom_search_algorithm):
-        tls_period_grid = self.__calculate_period_grid(time, min_period, max_period, 3, self.star_info,
-                                                   transits_min_count)
+                 run_limit, custom_search_algorithm, oversampling):
+        tls_period_grid, oversampling = LcbuilderHelper.calculate_period_grid(time, min_period, max_period,
+                                                                              oversampling, self.star_info,
+                                                                              transits_min_count)
         if custom_search_algorithm is not None:
             return custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                                                 ab, epoch, period, min_period, max_period, min_snr, self.cores,
@@ -575,20 +578,6 @@ class MATRIX:
 
     def __equal(self, a, b, tolerance=0.01):
         return np.abs(a - b) < tolerance
-
-    def __calculate_period_grid(self, time, min_period, max_period, oversampling, star_info, transits_min_count):
-        dif = time[1:] - time[:-1]
-        jumps = np.where(dif > 1)[0]
-        jumps = np.append(jumps, len(time))
-        previous_jump_index = 0
-        time_span_all_sectors = 0
-        for jumpIndex in jumps:
-            time_chunk = time[previous_jump_index + 1:jumpIndex]  # ignoring first measurement as could be the last from the previous chunk
-            time_span_all_sectors = time_span_all_sectors + (time_chunk[-1] - time_chunk[0])
-            previous_jump_index = jumpIndex
-        return DefaultTransitTemplateGenerator() \
-            .period_grid(star_info.radius, star_info.mass, time[-1] - time[0], min_period, max_period, oversampling,
-                         transits_min_count, time_span_all_sectors)
 
     @staticmethod
     def num_of_zeros(n):
