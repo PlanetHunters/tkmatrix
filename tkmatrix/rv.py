@@ -81,16 +81,14 @@ class RvFitter:
         plt.show()
 
     @staticmethod
-    def plot_fit(tau, m_min, path_output, names_plot, bjd):
+    def plot_fit(tau, m_min, fit_file):
         """
         Plot the fits results
         :param tau: period grid
         :param m_min: the Mass_min values
-        :param path_output: the plot output path
-        :param names_plot: the name of the plot
-        :param bjd: the BJD data
+        :param fit_file: the file of the output
         """
-        fig = plt.figure(figsize=(10, 6), dpi=200) # Create a figure of size 8x6 inches, 200 dots per inch
+        fig = plt.figure(figsize=(10, 6), dpi=200)
         ax = fig.add_subplot(1, 1, 1)
         ax.plot(tau, m_min, "-", color='Black', linewidth=0.75, label="Thin fit, M$_m$(P)")
         plt.plot([0, 50], [3, 3], color="red", linewidth=1.0, linestyle="-.")
@@ -101,7 +99,7 @@ class RvFitter:
         plt.plot([0, 50], [1000, 1000], color="red", linewidth=1.0, linestyle="-.")
         plt.plot([50, 50], [3, 1000], color="red", linewidth=1.0, linestyle="-.")
         plt.text(60, 300, '50 days', fontsize=10, rotation=90, rotation_mode='anchor')
-        ax.set_title(names_plot.replace(".", "") + ". # Meas.: {}".format(len(bjd)))
+        ax.set_title("M_min fits")
         ax.set_xlabel('$P_{planeta} (days)$', fontsize=15)
         ax.set_ylabel('$Max(Msin i/M_{\oplus})$', fontsize=15)
         ax.set_xscale('log')
@@ -109,7 +107,7 @@ class RvFitter:
         ax.set_xlim(1, 10**4)
         ax.set_ylim(0.1, 13**3)
         ax.legend(loc='upper right', fontsize=10)
-        plt.savefig(path_output + names_plot.replace(".", "") + ".pdf")
+        plt.savefig(fit_file)
         plt.show()
 
     @staticmethod
@@ -142,7 +140,7 @@ class RvFitter:
         return sum((rv - k * np.cos(omega + bjd * 2 * np.pi / period)) ** 2 / rv_error ** 2)
 
     @staticmethod
-    def k_fit_funct(path_output, pathOutFit, massStarList, rv, rv_error, bjd, tau):
+    def k_fit_funct(path_output, massStarList, rv, rv_error, bjd, tau):
         """
         Function that calculates a fit for RV data using iMINUIT minimizator (https://iminuit.readthedocs.io). There are also
         some other functions defined inside for plotting and other purpose. We decided to define them here because this allows
@@ -173,6 +171,7 @@ class RvFitter:
         rv_meas_error = np.array(rv_error)
         bjd = np.array(bjd)
         plot_file = path_output + "/RV.png"
+        fit_file = path_output + "/M_min_fit.png"
         RvFitter.plot_rv(plot_file, rv_meas, rv_meas_error, bjd)
         #TODO parallelize
         for index, orb_period in enumerate(tau):
@@ -192,6 +191,5 @@ class RvFitter:
             k_fit.append(np.abs(m.values["k"]))
         m_min = RvFitter.compute_mmin_from_semiamplitude(k_fit, massStarList, tau)
         #TODO store M_min together to K
-
-        RvFitter.plot_fit(tau, m_min, pathOutFit, names_plot, bjd)
+        RvFitter.plot_fit(tau, m_min, fit_file)
         return k_fit, m_min
