@@ -63,14 +63,13 @@ class RvFitter:
         return grid_list
 
     @staticmethod
-    def plot_rv(file_output, rv, rv_error, bjd, path_output):
+    def plot_rv(file_output, rv, rv_error, bjd):
         """
         Plots the RV data against the BJD
-        :param name: Plot name
+        :param file_output: Output file
         :param rv: the RV values
         :param rv_error: the RV error values
         :param bjd: the BJD data
-        :param path_output: the output path of the plot
         """
         fig = plt.figure(figsize=(10, 6), dpi=200) # Create a figure of size 8x6 inches, 200 dots per inch
         ax = fig.add_subplot(1, 1, 1)
@@ -173,28 +172,26 @@ class RvFitter:
         rv_meas = np.array(rv)
         rv_meas_error = np.array(rv_error)
         bjd = np.array(bjd)
-        plot_name = path_output + "/RV.png"
-        RvFitter.plot_rv(plot_name, rv_meas, rv_meas_error, bjd, pathOutFit)
-        with open(path_output + names_plot + "_kfit.dat", "w") as file_output:
-            #TODO parallelize
-            for index, orb_period in enumerate(tau):
-                min_period = tau[index]
-                max_period = tau[index]  #tau[index + 1]
-                m = Minuit(RvFitter.least_squares_search_comp,
-                           period=orb_period, k=1, omega=1, limit_period=(min_period, max_period), rv=rv_meas,
-                           rv_error=rv_meas_error, pedantic=False)
-                m.migrad()  # finds minimum of least_squares function
-                m.hesse()  # computes errors
-                if not m.get_fmin()[7]:  # if enters here it means that minimization do not converge
-                    # CAREFULL if it does not enter does not mean the minimization is good...
-                    print("Warning do not converge. Revise the program or the star")
-                    print("Period = ", orb_period)
-                    #                pprint(m.get_fmin())
-                    break
-                k_fit.append(np.abs(m.values["k"]))
-                file_output.write("{}\n".format(np.abs(m.values["k"])))
-            file_output.close()
+        plot_file = path_output + "/RV.png"
+        RvFitter.plot_rv(plot_file, rv_meas, rv_meas_error, bjd)
+        #TODO parallelize
+        for index, orb_period in enumerate(tau):
+            min_period = tau[index]
+            max_period = tau[index]  #tau[index + 1]
+            m = Minuit(RvFitter.least_squares_search_comp,
+                       period=orb_period, k=1, omega=1, limit_period=(min_period, max_period), rv=rv_meas,
+                       rv_error=rv_meas_error, pedantic=False)
+            m.migrad()  # finds minimum of least_squares function
+            m.hesse()  # computes errors
+            if not m.get_fmin()[7]:  # if enters here it means that minimization do not converge
+                # CAREFULL if it does not enter does not mean the minimization is good...
+                print("Warning do not converge. Revise the program or the star")
+                print("Period = ", orb_period)
+                #                pprint(m.get_fmin())
+                break
+            k_fit.append(np.abs(m.values["k"]))
         m_min = RvFitter.compute_mmin_from_semiamplitude(k_fit, massStarList, tau)
         #TODO store M_min together to K
+
         RvFitter.plot_fit(tau, m_min, pathOutFit, names_plot, bjd)
         return k_fit, m_min
