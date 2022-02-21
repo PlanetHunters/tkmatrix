@@ -176,7 +176,7 @@ class RvFitter:
         #TODO parallelize
         for index, orb_period in enumerate(tau):
             min_period = tau[index]
-            max_period = tau[index]  #tau[index + 1]
+            max_period = tau[index]
             m = Minuit(RvFitter.least_squares_search_comp,
                        period=orb_period, k=1, omega=1, limit_period=(min_period, max_period), rv=rv_meas,
                        rv_error=rv_meas_error, pedantic=False)
