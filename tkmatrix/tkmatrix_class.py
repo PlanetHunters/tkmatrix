@@ -164,6 +164,19 @@ class MATRIX:
 
     def inject(self, phases, min_period, max_period, steps_period, min_radius, max_radius, steps_radius,
                period_grid_geom="lin", radius_grid_geom="lin"):
+        """
+        Creates the injection of all the synthetic transiting planet scenarios
+        :param phases: the number of epochs
+        :param min_period: minimum period for the period grid
+        :param max_period: maximum period for the period grid
+        :param steps_period: number of periods to inject
+        :param min_radius: minimum radius for the grid
+        :param max_radius: maximum radius for the grid
+        :param steps_radius: number of radii to be injected
+        :param period_grid_geom: [lin|log]
+        :param radius_grid_geom: [lin|log]
+        :return: the directory where injected files are stored
+        """
         assert phases is not None and isinstance(phases, int) and phases > 0
         assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
         assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
@@ -192,10 +205,21 @@ class MATRIX:
             pool.map(InjectModel.make_model, inject_models)
         return inject_dir
 
-
-    def recovery(self, inject_dir, snr_threshold=5, sherlock_samples=0, detrend_ws=0,
+    def recovery(self, inject_dir, snr_threshold=5, detrend_ws=0,
                  transit_template='tls', run_limit=5, custom_search_algorithm=None, max_period_search=25,
                  oversampling=3):
+        """
+        Given the injection dir, it will iterate over all the csvs matching light curves and try the recovery of their
+        transit parameters (period and epoch).
+        :param inject_dir: the directory to search for light curves
+        :param snr_threshold: the SNR value to break the search for each curve
+        :param detrend_ws: the window size to detrend the curves
+        :param transit_template: whether to use tls or bls
+        :param run_limit: the number of iterations to break the search if the period and epoch are not found yet
+        :param custom_search_algorithm: the user-provided search algorithm if any
+        :param max_period_search: upper limit for the period search
+        :param oversampling: the oversampling of the search period grid
+        """
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert transit_template in ('tls', 'bls')
         assert inject_dir is not None and isinstance(inject_dir, str)
@@ -243,164 +267,24 @@ class MATRIX:
                 except Exception as e:
                     traceback.print_exc()
                     print("File not valid: " + file)
-        # tls_report_df = pd.read_csv(inject_dir + "a_tls_report.csv", float_precision='round_trip', sep=',',
-        #                             usecols=['period', 'radius', 'epoch', 'found', 'duration', 'snr', 'sde', 'run'])
-        if sherlock_samples > 0:
-            from sherlockpipe import sherlock
-            from sherlockpipe.scoring.QuorumSnrBorderCorrectedSignalSelector import QuorumSnrBorderCorrectedSignalSelector
-
-            class QuorumSnrBorderCorrectedStopWhenMatchSignalSelector(QuorumSnrBorderCorrectedSignalSelector):
-                def __init__(self, strength=1, min_quorum=0, per=None, t0=None):
-                    super().__init__()
-                    self.strength = strength
-                    self.min_quorum = min_quorum
-                    self.per = per
-                    self.t0 = t0
-
-                def select(self, transit_results, snr_min, detrend_method, wl):
-                    signal_selection = super(QuorumSnrBorderCorrectedStopWhenMatchSignalSelector, self) \
-                        .select(transit_results, snr_min, detrend_method, wl)
-                    if signal_selection.score == 0 or (
-                            self.is_harmonic(signal_selection.transit_result.period, self.per) and
-                            self.isRightEpoch(signal_selection.transit_result.t0, self.t0, self.per)):
-                        signal_selection.score = 0
-                    return signal_selection
-
-                def is_harmonic(self, a, b, tolerance=0.05):
-                    a = np.float(a)
-                    b = np.float(b)
-                    mod_ab = a % b
-                    mod_ba = b % a
-                    return (a > b and a < b * 3 + tolerance * 3 and (
-                            abs(mod_ab % 1) <= tolerance or abs((b - mod_ab) % 1) <= tolerance)) or \
-                           (b > a and a > b / 3 - tolerance / 3 and (
-                                   abs(mod_ba % 1) <= tolerance or abs((a - mod_ba) % 1) <= tolerance))
-
-                def isRightEpoch(self, t0, known_epoch, known_period):
-                    right_epoch = False
-                    for i in range(-5, 5):
-                        right_epoch = right_epoch or (np.abs(t0 - known_epoch + i * known_period) < (
-                                1. / 24.))
-                    return right_epoch
-            report = {}
-            reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'found', 'snr', 'sde', 'run'])
-            a = False
-            samples_analysed = sherlock_samples
-            for index, row in tls_report_df[::-1].iterrows():
-                file = os.path.join(
-                    'P' + str(row['period']) + '_R' + str(row['radius']) + '_' + str(row['epoch']) + '.csv')
-                first_false = index > 0 and tls_report_df.iloc[index - 1]['found'] and \
-                            not tls_report_df.iloc[index]['found']
-                if first_false:
-                    samples_analysed = 0
-                elif tls_report_df.iloc[index]['found']:
-                    samples_analysed = sherlock_samples
-                if samples_analysed < sherlock_samples:
-                    try:
-                        samples_analysed = samples_analysed + 1
-                        period = float(re.search("P([0-9]+\\.[0-9]+)", file)[1])
-                        r_planet = float(re.search("R([0-9]+\\.[0-9]+)", file)[1])
-                        epoch = float(re.search("_([0-9]+\\.[0-9]+)\\.csv", file)[1])
-                        signal_selection_algorithm = QuorumSnrBorderCorrectedStopWhenMatchSignalSelector(1, 0, period,
-                                                                                                         epoch)
-                        df = pd.read_csv(inject_dir + file, float_precision='round_trip', sep=',',
-                                         usecols=['#time', 'flux', 'flux_err'])
-                        if len(df) == 0:
-                            found = True
-                            snr = 20
-                            sde = 20
-                            run = 1
-                        else:
-                            sherlock.Sherlock(False, object_infos=[MissionInputObjectInfo(self.id, inject_dir + file)]) \
-                                .setup_detrend(True, True, 1.5, 4, 12, "biweight", 0.2, 1.0, 20, False,
-                                               0.25, "cosine", None) \
-                                .setup_transit_adjust_params(5, None, None, 10, None, None, 0.4, 14, 10,
-                                                             20, 5, 5.5, 0.05, "mask", "quorum", 1, 0,
-                                                             signal_selection_algorithm) \
-                                .run()
-                            df = pd.read_csv(self.id.replace(" ", "") + "_INP/candidates.csv", float_precision='round_trip', sep=',',
-                                             usecols=['curve', 'period', 't0', 'run', 'snr', 'sde', 'rad_p',
-                                                      'transits'])
-                            snr = df["snr"].iloc[len(df) - 1]
-                            run = df["run"].iloc[len(df) - 1]
-                            sde = df["sde"].iloc[len(df) - 1]
-                            per_run = 0
-                            found_period = False
-                            j = 0
-                            for per in df["period"]:
-                                if signal_selection_algorithm.is_harmonic(per, period / 2.):
-                                    found_period = True
-                                    t0 = df["t0"].iloc[j]
-                                    break
-                                j = j + 1
-                            right_epoch = False
-                            if found_period:
-                                for i in range(-5, 5):
-                                    right_epoch = right_epoch or (np.abs(t0 - epoch + i * period) < (
-                                            1. / 24.))
-                                    if right_epoch:
-                                        snr = df["snr"].iloc[j]
-                                        run = df["run"].iloc[j]
-                                        sde = df["sde"].iloc[j]
-                                        break
-                            found = right_epoch
-                        new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "sde": sde,
-                                      "snr": snr,
-                                      "run": int(run)}
-                        reports_df = reports_df.append(new_report, ignore_index=True)
-                        reports_df.to_csv(inject_dir + "a_sherlock_report.csv", index=False)
-                        print("P=" + str(period) + ", R=" + str(r_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
-                            found) +
-                              " WITH SNR " + str(snr) + "and SDE " + str(sde))
-                    except Exception as e:
-                        print(e)
-                        print("File not valid: " + file)
-
-        # If preserve parameter is not True, we remove inject files:
         if not self.preserve:
             for file in os.listdir(inject_dir):
                 if file.endswith(".csv") and file.startswith("P"):
                     os.remove(inject_dir + file)
 
-    def transit_masks(self, transit_masks, time):
-        if transit_masks is None:
-            transit_masks = []
-        result = np.full(len(time), False)
-        for mask in transit_masks:
-            intransit = transit_mask(time, mask["P"], 2 * mask["D"], mask["T0"])
-            result[intransit] = True
-
-        return result
-
-    def __clean(self, lc, detrend_period, detrend_period_method, custom_clean_algorithm):
-        clean_flux = lc.flux.value
-        time = lc.time.value
-        if custom_clean_algorithm is not None:
-            clean_flux = custom_clean_algorithm.clean(time, clean_flux)
-        elif detrend_period:
-            periodogram = lc.to_periodogram(minimum_period=0.05, maximum_period=15, oversample_factor=10)
-            ws = self.__calculate_max_significant_period(lc, periodogram)
-            clean_flux = wotan.flatten(time, clean_flux, window_length=ws, return_trend=False,
-                                       method=detrend_period_method, break_tolerance=0.5)
-        return clean_flux
-
-    def __calculate_max_significant_period(self, lc, periodogram):
-        #max_accepted_period = (lc.time[len(lc.time) - 1] - lc.time[0]) / 4
-        max_accepted_period = np.float64(10)
-        # TODO related to https://github.com/franpoz/SHERLOCK/issues/29 check whether this fits better
-        max_power_index = np.argmax(periodogram.power)
-        period = periodogram.period[max_power_index]
-        if max_power_index > 0.0008:
-            period = period.value
-            logging.info("Auto-Detrend found the strong period: " + str(period) + ".")
-        else:
-            logging.info("Auto-Detrend did not find relevant periods.")
-            period = None
-        return period
-
     @staticmethod
     def plot_results(object_id, inject_dir, binning=1, xticks=None, yticks=None, period_grid_geom="lin",
                      radius_grid_geom="lin"):
+        """
+        Generates a heat map with the found/not found results for the period/radius grids
+        :param object_id: the id of the target star
+        :param inject_dir: the inject directory where the result files are stored
+        :param binning: the binning to be applied to the grids
+        :param xticks: the fixed ticks to be used for the period grid
+        :param yticks: the fixed ticks to be used for the radius grid
+        :param period_grid_geom: [lin|log]
+        :param radius_grid_geom: [lin|log]
+        """
         df = pd.read_csv(inject_dir + '/a_tls_report.csv', float_precision='round_trip', sep=',',
                          usecols=['period', 'radius', 'found', 'sde'])
         min_period = df["period"].min()
@@ -456,6 +340,18 @@ class MATRIX:
     @staticmethod
     def plot_diff(object_id, inject_dir1, inject_dir2, output_dir, binning=1, xticks=None, yticks=None,
                   period_grid_geom="lin", radius_grid_geom="lin"):
+        """
+        Plots the differente between two results directories.
+        :param object_id: the target star id
+        :param inject_dir1: the results dir number 1
+        :param inject_dir2: the results dir number 2
+        :param output_dir: the output directory for the plot
+        :param binning: the binning to be applied to both axes
+        :param xticks: the fixed ticks for the period bar
+        :param yticks: the fixed ticks for the radius bar
+        :param period_grid_geom: [lin|log]
+        :param radius_grid_geom: [ling|log]
+        """
         df1 = pd.read_csv(inject_dir1 + '/a_tls_report.csv', float_precision='round_trip', sep=',',
                          usecols=['period', 'radius', 'found', 'sde'])
         df2 = pd.read_csv(inject_dir2 + '/a_tls_report.csv', float_precision='round_trip', sep=',',
