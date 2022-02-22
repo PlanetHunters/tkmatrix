@@ -24,6 +24,11 @@ class InjectModel:
 
     @staticmethod
     def make_model(inject_model):
+        """
+        Creates an injected transit curve given the provided InjectMOdel parameters instance.
+        :param inject_model: the InjectModel object to be used as transit source. The result
+        is written into a csv file.
+        """
         logging.info('P = ' + str(inject_model.period) + ' days, Rp = ' + str(inject_model.rplanet) + ", T0 = " +
                      str(inject_model.t0))
         P1 = inject_model.period * u.day
