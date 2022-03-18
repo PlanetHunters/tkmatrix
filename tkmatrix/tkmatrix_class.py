@@ -28,6 +28,8 @@ class MATRIX:
     SDE_ROCHE = 2000
     lcbuilder = LcBuilder()
     MIN_SEARCH_PERIOD = 0.5
+    DETREND_BIWEIGHT = "biweight"
+    DETREND_GP = "gp"
 
     def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None, exposure_time=None,
                  initial_mask=None, initial_transit_mask=None,
@@ -198,7 +200,7 @@ class MATRIX:
             pool.map(InjectModel.make_model, inject_models)
         return inject_dir
 
-    def recovery(self, inject_dir, snr_threshold=5, detrend_ws=0,
+    def recovery(self, inject_dir, snr_threshold=5, detrend_method=DETREND_BIWEIGHT, detrend_ws=0,
                  transit_template='tls', run_limit=5, custom_search_algorithm=None, max_period_search=25,
                  oversampling=3):
         """
@@ -207,6 +209,7 @@ class MATRIX:
         :param inject_dir: the directory to search for light curves
         :param snr_threshold: the SNR value to break the search for each curve
         :param detrend_ws: the window size to detrend the curves
+        :param detrend_method: the algorithm to detrend the curve [gp|biweight]
         :param transit_template: whether to use tls or bls
         :param run_limit: the number of iterations to break the search if the period and epoch are not found yet
         :param custom_search_algorithm: the user-provided search algorithm if any
@@ -216,6 +219,7 @@ class MATRIX:
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert transit_template in ('tls', 'bls')
         assert inject_dir is not None and isinstance(inject_dir, str)
+        assert detrend_method == self.DETREND_GP or detrend_method == self.DETREND_BIWEIGHT
         if transit_template == 'tls':
             transit_template = 'default'
         elif transit_template == 'bls':
@@ -246,8 +250,9 @@ class MATRIX:
                                           self.radiusmax, self.mass, self.massmin,
                                           self.massmax, self.ab, epoch, period, self.MIN_SEARCH_PERIOD,
                                           max_period_search, snr_threshold,
-                                          transit_template, detrend_ws, self.lc_build.transits_min_count,
-                                          run_limit, custom_search_algorithm, oversampling)
+                                          transit_template, detrend_method, detrend_ws,
+                                          self.lc_build.transits_min_count, run_limit, custom_search_algorithm,
+                                          oversampling)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run, "duration_found": duration_found,
                                   "period_found": period_found, "epoch_found": epoch_found}
@@ -406,7 +411,7 @@ class MATRIX:
         plt.close()
 
     def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
-                 period, min_period, max_period, min_snr, transit_template, ws, transits_min_count,
+                 period, min_period, max_period, min_snr, transit_template, detrend_method, ws, transits_min_count,
                  run_limit, custom_search_algorithm, oversampling):
         tls_period_grid, oversampling = LcbuilderHelper.calculate_period_grid(time, min_period, max_period,
                                                                               oversampling, self.star_info,
@@ -414,21 +419,26 @@ class MATRIX:
         if custom_search_algorithm is not None:
             return custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                                                 ab, epoch, period, min_period, max_period, min_snr, self.cores,
-                                                transit_template, ws, transits_min_count, run_limit)
+                                                transit_template, detrend_method, ws, transits_min_count, run_limit)
         else:
             return self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
-                     period, min_period, max_period, min_snr, self.cores, transit_template, ws, transits_min_count,
-                     run_limit, tls_period_grid)
+                                     period, min_period, max_period, min_snr, self.cores, transit_template,
+                                     detrend_method, ws, transits_min_count, run_limit, tls_period_grid)
 
     def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
-                     period, min_period, max_period, min_snr, cores, transit_template, ws, transits_min_count,
-                     run_limit, tls_period_grid):
+                     period, min_period, max_period, min_snr, cores, transit_template, detrend_method, ws,
+                     transits_min_count, run_limit, tls_period_grid):
         snr = 1e12
         found_signal = False
         time, flux = cleaned_array(time, flux)
         run = 0
         if ws > 0:
-            flux = wotan.flatten(time, flux, window_length=ws, return_trend=False, method='biweight', break_tolerance=0.5)
+            if detrend_method == self.DETREND_BIWEIGHT:
+                flux = wotan.flatten(time, flux, window_length=ws, return_trend=False, method=detrend_method,
+                                     break_tolerance=0.5)
+            elif detrend_method == self.DETREND_GP:
+                flux = wotan.flatten(time, flux, method=self.DETREND_GP, kernel='matern', kernel_size=ws,
+                                     return_trend=False, break_tolerance=0.5)
         while snr >= min_snr and not found_signal and (run_limit > 0 and run < run_limit):
             model = transitleastsquares(time, flux)
             # R_starx = rstar / u.R_sun
