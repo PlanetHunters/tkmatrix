@@ -104,8 +104,8 @@ class RvFitter:
         ax.set_ylabel('$Max(Msin i/M_{\oplus})$', fontsize=15)
         ax.set_xscale('log')
         ax.set_yscale('log')
-        ax.set_xlim(1, 10**4)
-        ax.set_ylim(0.1, 13**3)
+        ax.set_xlim(1, 10 ** 4)
+        ax.set_ylim(0.1, 13 ** 3)
         ax.legend(loc='upper right', fontsize=10)
         plt.savefig(fit_file)
         plt.show()
@@ -131,7 +131,7 @@ class RvFitter:
         Function used to fit the semi-amplitude k.
         :param period: the period for the fit
         :param k: the semi-amplitude
-        :param omega: the arg of periastron
+        :param omega: the initial phase
         :param bjd: the BJD time
         :param rv: the RV data
         :param rv_error: the RV error data
