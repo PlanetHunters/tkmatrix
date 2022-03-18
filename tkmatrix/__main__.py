@@ -123,7 +123,7 @@ if __name__ == '__main__':
                            matrix_user_properties["STEPS_RADIUS"], matrix_user_properties["PERIOD_GRID_GEOM"],
                            matrix_user_properties["RADIUS_GRID_GEOM"])
     ir.recovery(inject_dir, matrix_user_properties["SNR_THRESHOLD"],
-                matrix_user_properties["SHERLOCK_DEEPNESS"],
+                matrix_user_properties["DETREND_METHOD"],
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
                 matrix_user_properties["RUN_LIMIT"],
                 custom_search, matrix_user_properties["MAX_PERIOD_SEARCH"], matrix_user_properties["OVERSAMPLING"])
