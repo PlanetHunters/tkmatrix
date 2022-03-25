@@ -191,7 +191,7 @@ class MATRIX:
             else np.logspace(np.log10(min_radius), np.log10(max_radius), steps_period)
         inject_models = []
         for period in period_grid:
-            for t0 in np.arange(time[60], time[60] + period - 0.1, period / phases):
+            for t0 in np.linspace(time[0], time[0] + period, phases + 2)[1:-1]:
                 for rplanet in radius_grid:
                     rplanet = np.around(rplanet, decimals=2) * u.R_earth
                     inject_models.append(InjectModel(inject_dir, time, flux0, flux_err, self.rstar, self.mstar, t0,
