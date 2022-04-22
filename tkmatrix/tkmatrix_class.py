@@ -6,6 +6,7 @@ from multiprocessing import Pool
 
 import numpy as np
 import matplotlib.pyplot as plt
+from lcbuilder.HarmonicSelector import HarmonicSelector
 from lcbuilder.helper import LcbuilderHelper
 from lcbuilder.lcbuilder_class import LcBuilder
 import wotan
@@ -463,15 +464,10 @@ class MATRIX:
                 time = time[~intransit_result]
                 flux = flux[~intransit_result]
                 time, flux = cleaned_array(time, flux)
-                right_period = self.__is_multiple_of(results.period, period / 2.)
-                right_epoch = False
-                for tt in results.transit_times:
-                    for i in range(-5, 5):
-                        right_epoch = right_epoch or (np.abs(tt - epoch + i * period) < (1. / 24.))
-                #            right_depth   = (np.abs(np.sqrt(1.-results.depth)*rstar - rplanet)/rplanet < 0.05) #check if the depth matches
-                if right_period and right_epoch:
-                    found_signal = True
-                    break
+                if results.transit_times is not None and len(results.transit_times) > 0:
+                    found_signal = HarmonicSelector.is_harmonic(results.period, period, results.transit_times[0])
+                    if found_signal:
+                        break
             run = run + 1
         return found_signal, results.snr, results.SDE, run, results.duration, results.period, results.T0
 
@@ -484,13 +480,3 @@ class MATRIX:
             return 0
         s = '{:.16f}'.format(n).split('.')[1]
         return len(s) - len(s.lstrip('0'))
-
-    def __is_multiple_of(self, a, b, tolerance=0.05):
-        a = np.float(a)
-        b = np.float(b)
-        mod_ab = a % b
-        mod_ba = b % a
-        return (a > b and a < b * 3 + tolerance * 3 and (
-                    abs(mod_ab % 1) <= tolerance or abs((b - mod_ab) % 1) <= tolerance)) or \
-               (b > a and a > b / 3 - tolerance / 3 and (
-                           abs(mod_ba % 1) <= tolerance or abs((a - mod_ba) % 1) <= tolerance))
