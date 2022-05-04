@@ -63,10 +63,10 @@ class InjectModel:
             spots_1=None, spots_2=None,
             exact_grav=False, verbose=1)
         if model[0] > 0:
-            flux_t = inject_model.flux + model - 1.
+            flux_t = np.array(inject_model.flux) + model - 1.
             result_flux = flux_t
-            result_flux_err = inject_model.flux_err
-            result_time = inject_model.time
+            result_flux_err = np.array(inject_model.flux_err)
+            result_time = np.array(inject_model.time)
         else:
             result_flux = []
             result_time = []
