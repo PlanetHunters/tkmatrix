@@ -465,7 +465,7 @@ class MATRIX:
                 flux = flux[~intransit_result]
                 time, flux = cleaned_array(time, flux)
                 if results.transit_times is not None and len(results.transit_times) > 0:
-                    found_signal = HarmonicSelector.is_harmonic(results.period, period, results.transit_times[0])
+                    found_signal = HarmonicSelector.is_harmonic(results.period, period, results.transit_times[0], epoch)
                     if found_signal:
                         break
             run = run + 1
