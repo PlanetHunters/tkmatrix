@@ -27,7 +27,7 @@ setuptools.setup(
                         "cython==0.29.21",
                         "ellc==1.8.5",
                         "lcbuilder==0.7.25",
-                        "matplotlib==3.3.4",
+                        "matplotlib==3.5.2",
                         "mock==4.0.3",
                         'numba>=0.53.0rc1',
                         'pyparsing==2.4.7', # Matplotlib dependency
