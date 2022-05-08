@@ -2,7 +2,7 @@ import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
-version = "0.3.15"
+version = "0.3.16rc1"
 setuptools.setup(
     name="tkmatrix",
     version=version,
