@@ -16,7 +16,7 @@ ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 <i>A. Thuillier</i>
 
 ## Installation
-Supported Python versions: 3.6, 3.7, 3.8. Install with:
+Supported Python versions: 3.8, 3.9. Install with:
 
 `python3 -m pip install tkmatrix`
 
