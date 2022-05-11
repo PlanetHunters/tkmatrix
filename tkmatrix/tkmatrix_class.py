@@ -266,6 +266,9 @@ class MATRIX:
                 except Exception as e:
                     traceback.print_exc()
                     print("File not valid: " + file)
+        for file in os.listdir(inject_dir):
+            if file.endswith(".png"):
+                os.remove(inject_dir + file)
         if not self.preserve:
             for file in os.listdir(inject_dir):
                 if file.endswith(".csv") and file.startswith("P"):
