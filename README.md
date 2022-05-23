@@ -8,7 +8,7 @@ ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 ## Citation
 We are planning to write a scientific paper based on the usage of MATRIX. In the meantime, we encourage the users to cite the Software DOI in their research:
 ```
-@software{martin_devora_pajares_2022_6570832,
+@software{martin_devora_pajares_2022_6570831,
   author       = {Martín Dévora-Pajares and Francisco J. Pozuelos},
   title        = {{MATRIX: Multi-phAse Transits Recovery from Injected eXoplanets}},
   month        = may,
