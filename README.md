@@ -5,15 +5,28 @@
 # MATRIX ToolKit
 ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 
+## Citation
+We are planning to write a scientific paper based on the usage of MATRIX. In the meantime, we encourage the users to cite the Software DOI in their research:
+```
+@software{martin_devora_pajares_2022_6570831,
+  author       = {Martín Dévora-Pajares and Francisco J. Pozuelos},
+  title        = {{MATRIX: Multi-phAse Transits Recovery from Injected eXoplanets}},
+  month        = may,
+  year         = 2022,
+  publisher    = {Zenodo},
+  doi          = {10.5281/zenodo.6570831},
+  url          = {https://doi.org/10.5281/zenodo.6570831}
+}
+```
+
 ## Main Developers
 [M. Dévora Pajares](https://github.com/martindevora)
 
 [F.J. Pozuelos](https://github.com/franpoz)
 
-[L. Cerdeño Mota](https://github.com/LuisCerdenoMota) 
 
-## Additional contributors 
-<i>A. Thuillier</i>
+## Additional contributors
+[L. Cerdeño Mota](https://github.com/LuisCerdenoMota) 
 
 ## Installation
 Supported Python versions: 3.8, 3.9. Install with:
