@@ -1,7 +1,7 @@
 import logging
 import os
 
-import ellc
+from ellc import lc
 import numpy as np
 import pandas as pd
 import astropy.constants as ac
@@ -34,7 +34,7 @@ class InjectModel:
         P1 = inject_model.period * u.day
         a = np.cbrt((ac.G * inject_model.mstar * P1 ** 2) / (4 * np.pi ** 2)).to(u.au)
         texpo = inject_model.exposure_time / 60. / 60. / 24.
-        model = ellc.lc(
+        model = lc(
             t_obs=inject_model.time,
             radius_1=inject_model.rstar.to(u.au) / a,  # star radius convert from AU to in units of a
             radius_2=inject_model.rplanet.to(u.au) / a,  # convert from Rearth (equatorial) into AU and then into units of a
