@@ -36,7 +36,7 @@ jobs:
         with:
           submodules: recursive
       - name: Install tox
-        run: python -m pip install tox
+        run: python -m pip install tox tox-wheel
       - name: Run test suite
         run: tox -vv -e "${{ matrix.toxenv }}"
         env:
