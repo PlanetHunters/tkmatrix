@@ -479,7 +479,7 @@ class MATRIX:
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
         if yticks is not None:
             plt.xticks(yticks)
-        plt.savefig(inject_dir + '/inj-rec' + '-rv' if is_rv else '' + '.png', bbox_inches='tight', dpi=200)
+        plt.savefig(inject_dir + '/inj-rec' + ('-rv' if is_rv else '') + '.png', bbox_inches='tight', dpi=200)
         plt.close()
 
     @staticmethod
