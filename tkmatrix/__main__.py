@@ -123,16 +123,19 @@ if __name__ == '__main__':
         exit(1)
     inject_dir = None
     if rv is not None and rv['FILE'] is not None:
-        inject_dir = ir.recovery_rv_periods(rv['FILE'], rv["MAX_PERIOD_SEARCH"], rv['INITIAL_MASK'],
-                                            rv['OVERSAMPLING'], matrix_user_properties["CPUS"])
+        inject_dir = ir.recovery_rv_periods(rv['FILE'], rv["MAX_PERIOD_SEARCH"],
+                                            rv['INITIAL_MASK'] if 'INITIAL_MASK' in rv else None,
+                                            rv['OVERSAMPLING'] if 'OVERSAMPLING' in rv else 1,
+                                            matrix_user_properties["CPUS"])
         if rv['PHASES'] is not None:
-            ir.inject_rv(inject_dir, rv["PHASES"], rv["MIN_PERIOD"],
+            ir.inject_rv(inject_dir, rv['FILE'], rv["PHASES"], rv["MIN_PERIOD"],
                          rv["MAX_PERIOD"], rv["STEPS_PERIOD"],
                          rv["MIN_MASS"], rv["MAX_MASS"], rv["STEPS_MASS"],
                          rv["PERIOD_GRID_GEOM"],
-                         rv["RADIUS_GRID_GEOM"])
-            ir.recovery_rv(inject_dir, rv['SNR_THRESHOLD'], rv['RUN_LIMIT'], rv['MAX_PERIOD_SEARCH'],
-                           rv['INITIAL_MASK'], rv['OVERSAMPLING'])
+                         rv["MASS_GRID_GEOM"])
+            ir.recovery_rv(inject_dir, rv['INITIAL_MASK'] if 'INITIAL_MASK' in rv else None,
+                           rv['SNR_THRESHOLD'], rv['RUN_LIMIT'],
+                           rv['MAX_PERIOD_SEARCH'], rv['OVERSAMPLING'] if 'OVERSAMPLING' in rv else 1)
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
                            matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEPS_PERIOD"],
                            matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
