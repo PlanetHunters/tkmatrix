@@ -92,6 +92,7 @@ if __name__ == '__main__':
     initial_mask = matrix_user_properties["INITIAL_MASK"]
     initial_smooth_enabled = matrix_user_properties["INITIAL_SMOOTH_ENABLED"]
     initial_transit_mask = matrix_user_properties["INITIAL_TRANSIT_MASK"]
+    rv = matrix_user_properties["RV"]
     auto_detrend_period = matrix_user_properties["AUTO_DETREND_PERIOD"]
     auto_detrend_ratio = matrix_user_properties["AUTO_DETREND_RATIO"]
     auto_detrend_method = matrix_user_properties["AUTO_DETREND_METHOD"]
@@ -117,11 +118,26 @@ if __name__ == '__main__':
                 auto_detrend_method, auto_detrend_ratio, auto_detrend_period, prepare_algorithm, cache_dir,
                 oscillation_reduction, oscillation_min_snr, oscillation_amplitude_threshold, oscillation_ws_percent,
                 oscillation_min_period, oscillation_max_period, matrix_user_properties["CPUS"])
+    if matrix_user_properties['PHASES'] is None and ((rv is None) or (rv is not None and rv['FILE'] is None)):
+        print("You either need to define a photometry or a RV injection and recovery scenario.")
+        exit(1)
+    inject_dir = None
+    if rv is not None and rv['FILE'] is not None:
+        inject_dir = ir.recovery_rv_periods(rv['FILE'], rv["MAX_PERIOD_SEARCH"], rv['INITIAL_MASK'],
+                                            rv['OVERSAMPLING'], matrix_user_properties["CPUS"])
+        if rv['PHASES'] is not None:
+            ir.inject_rv(inject_dir, rv["PHASES"], rv["MIN_PERIOD"],
+                         rv["MAX_PERIOD"], rv["STEPS_PERIOD"],
+                         rv["MIN_MASS"], rv["MAX_MASS"], rv["STEPS_MASS"],
+                         rv["PERIOD_GRID_GEOM"],
+                         rv["RADIUS_GRID_GEOM"])
+            ir.recovery_rv(inject_dir, rv['SNR_THRESHOLD'], rv['RUN_LIMIT'], rv['MAX_PERIOD_SEARCH'],
+                           rv['INITIAL_MASK'], rv['OVERSAMPLING'])
     inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
                            matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEPS_PERIOD"],
                            matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
                            matrix_user_properties["STEPS_RADIUS"], matrix_user_properties["PERIOD_GRID_GEOM"],
-                           matrix_user_properties["RADIUS_GRID_GEOM"])
+                           matrix_user_properties["RADIUS_GRID_GEOM"], inject_dir=inject_dir)
     ir.recovery(inject_dir, matrix_user_properties["SNR_THRESHOLD"],
                 matrix_user_properties["DETREND_METHOD"],
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],

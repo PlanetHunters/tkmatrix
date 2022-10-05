@@ -4,6 +4,7 @@ import sys
 import traceback
 from multiprocessing import Pool
 
+import lightkurve
 import numpy as np
 import matplotlib.pyplot as plt
 from lcbuilder.HarmonicSelector import HarmonicSelector
@@ -17,8 +18,11 @@ import astropy.units as u
 import os
 import re
 import pandas as pd
+from scipy.stats import binned_statistic
 
 from tkmatrix.inject_model import InjectModel
+from tkmatrix.inject_rv_model import InjectRvModel
+from tkmatrix.rv import RvFitter
 
 
 class MATRIX:
@@ -32,8 +36,8 @@ class MATRIX:
     DETREND_BIWEIGHT = "biweight"
     DETREND_GP = "gp"
 
-    def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None, exposure_time=None,
-                 initial_mask=None, initial_transit_mask=None,
+    def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None,
+                 exposure_time=None, initial_mask=None, initial_transit_mask=None,
                  eleanor_corr_flux='pca_flux', outliers_sigma=None, high_rms_enabled=True, high_rms_threshold=2.5,
                  high_rms_bin_hours=4, smooth_enabled=False,
                  auto_detrend_enabled=False, auto_detrend_method="cosine", auto_detrend_ratio=0.25,
@@ -158,8 +162,53 @@ class MATRIX:
         logger.addHandler(handler)
         logging.info("Setup injection directory")
 
+    def inject_rv(self, inject_dir, phases, min_period, max_period, steps_period, min_mass, max_mass, steps_mass,
+                  period_grid_geom="lin", mass_grid_geom="lin"):
+        """
+        Creates the injection of all the synthetic radial velocities planet scenarios
+        :param inject_dir: the directory to store all the files
+        :param phases: the number of epochs
+        :param min_period: minimum period for the period grid
+        :param max_period: maximum period for the period grid
+        :param steps_period: number of periods to inject
+        :param min_mass: minimum radius for the grid
+        :param max_mass: maximum radius for the grid
+        :param steps_mass: number of masses to be injected
+        :param period_grid_geom: [lin|log]
+        :param mass_grid_geom: [lin|log]
+        :return: the directory where injected files are stored
+        """
+        assert phases is not None and isinstance(phases, int) and phases > 0
+        assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
+        assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
+        assert steps_period is not None and isinstance(steps_period, (int)) and steps_period > 0
+        assert min_mass is not None and isinstance(min_mass, (int, float)) and min_mass > 0
+        assert max_mass is not None and isinstance(max_mass, (int, float)) and max_mass > 0
+        assert steps_mass is not None and isinstance(steps_mass, (int)) and steps_mass > 0
+        assert max_period >= min_period
+        assert max_mass >= min_mass
+        period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
+            else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
+        radius_grid = np.linspace(min_mass, max_mass, steps_mass) if mass_grid_geom == "lin" \
+            else np.logspace(np.log10(min_mass), np.log10(max_mass), steps_period)
+        inject_models = []
+        rv_df = pd.read_csv(self.rv_file)
+        rv_df = rv_df.sort_values(by=['bjd'], ascending=True)
+        time = rv_df['bjd']
+        rv = rv_df['rv']
+        rv_err = rv_df['rv_err']
+        for period in period_grid:
+            for t0 in np.linspace(time[0], time[0] + period, phases + 2)[1:-1]:
+                for mplanet in radius_grid:
+                    mplanet = np.around(mplanet, decimals=2) * u.M_earth
+                    inject_models.append(InjectRvModel(inject_dir, time, rv, rv_err, self.rstar, self.mstar, t0,
+                                                       period, mplanet))
+        with Pool(processes=self.cores) as pool:
+            pool.map(InjectRvModel.make_model, inject_models)
+        return inject_dir
+
     def inject(self, phases, min_period, max_period, steps_period, min_radius, max_radius, steps_radius,
-               period_grid_geom="lin", radius_grid_geom="lin"):
+               period_grid_geom="lin", radius_grid_geom="lin", inject_dir=None):
         """
         Creates the injection of all the synthetic transiting planet scenarios
         :param phases: the number of epochs
@@ -171,6 +220,7 @@ class MATRIX:
         :param steps_radius: number of radii to be injected
         :param period_grid_geom: [lin|log]
         :param radius_grid_geom: [lin|log]
+        :param inject_dir: directory where injected files are stored
         :return: the directory where injected files are stored
         """
         assert phases is not None and isinstance(phases, int) and phases > 0
@@ -182,7 +232,7 @@ class MATRIX:
         assert steps_radius is not None and isinstance(steps_radius, (int)) and steps_radius > 0
         assert max_period >= min_period
         assert max_radius >= min_radius
-        inject_dir = self.retrieve_object_data()
+        inject_dir = inject_dir if inject_dir is not None else self.retrieve_object_data()
         flux0 = self.lc_build.lc.flux.value
         time = self.lc_build.lc.time.value
         flux_err = self.lc_build.lc.flux_err.value
@@ -200,6 +250,96 @@ class MATRIX:
         with Pool(processes=self.cores) as pool:
             pool.map(InjectModel.make_model, inject_models)
         return inject_dir
+
+    def recovery_rv_periods(self, filename, max_period_search, rv_masks=None, oversampling=1,
+                            cores=os.cpu_count() - 1):
+        inject_dir = self.retrieve_object_data()
+        if rv_masks is None:
+            rv_masks = {}
+        rv_df = pd.read_csv(filename)
+        rv_df = rv_df.dropna()
+        rv_df = rv_df.sort_values(by=['bjd'], ascending=True)
+        period_grid_size = int((max_period_search - self.MIN_SEARCH_PERIOD) * 100 * oversampling)
+        rv_data, period_grid, k_grid, omega_grid, msin_grid, least_squares_grid, argmax_sde, power, snr, SDE = \
+            RvFitter.recover_periods(rv_df, period_grid_geom='log', steps_period=period_grid_size, period_min=0.5,
+                                     max_period=max_period_search, rv_masks=rv_masks, star_mass=self.star_info.mass,
+                                     cpus=cores)
+        fig, axs = plt.subplots(5, 1, figsize=(20, 12))
+        lc = lightkurve.LightCurve(time=rv_df['bjd'], flux=rv_df['rv'])
+        periodogram = lc.to_periodogram(oversample_factor=10, maximum_period=max_period_search, minimum_period=0.5)
+        axs[0] = periodogram.plot(ax=axs[0], color='blue', scale='log')
+        axs[0].set_title("Initial LSP")
+        lc = lightkurve.LightCurve(time=rv_df['bjd'], flux=rv_data)
+        periodogram = lc.to_periodogram(oversample_factor=10, maximum_period=max_period_search, minimum_period=0.5)
+        axs[1] = periodogram.plot(ax=axs[1], color='blue', scale='log')
+        axs[1].set_title("Masked planets LSP")
+        bin_means_msin = binned_statistic(period_grid, msin_grid, bins=50)[0]
+        bin_means_period = binned_statistic(period_grid, period_grid, bins=50)[0]
+        axs[2].bar(bin_means_period, bin_means_msin, width=1.0, color="blue")
+        axs[2].set_xscale('log', base=10)
+        axs[2].set_title("Mmin detections")
+        axs[2].set_xlabel("Period (d)")
+        axs[2].set_ylabel("Mmin (M$_\oplus$)")
+        axs[3].plot(period_grid, msin_grid, color="blue")
+        axs[3].set_xscale('log', base=10)
+        axs[3].set_title("Mmin detections")
+        axs[3].set_xlabel("Period (d)")
+        axs[3].set_ylabel("Mmin (M$_\oplus$)")
+        axs[4].plot(period_grid, power / np.std(power), color="blue", label="X-axis motion")
+        axs[4].set_xscale('log', base=10)
+        axs[4].set_title("SDE detections")
+        axs[4].set_xlabel("Period (d)")
+        axs[4].set_ylabel("SDE")
+        plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=1.5, wspace=0.4, hspace=0.4)
+        plt.savefig(inject_dir + '/rv_thresholds.png', bbox_inches='tight', dpi=200)
+        plt.close()
+        return inject_dir
+
+    def recovery_rv(self, inject_dir, rv_masks=None, snr_threshold=5, run_limit=3, max_period_search=25, oversampling=3):
+        assert inject_dir is not None and isinstance(inject_dir, str)
+        reports_df = pd.DataFrame(columns=['period', 'mass', 'epoch', 'period_found', 'epoch_found', 'mass_found',
+                                           'found', 'snr', 'sde', 'run'])
+        for file in sorted(os.listdir(inject_dir)):
+            file_name_matches = re.search("RV_P([0-9]+\\.[0-9]+)+_R([0-9]+\\.[0-9]+)_([0-9]+\\.[0-9]+)\\.csv", file)
+            if file_name_matches is not None:
+                try:
+                    period = float(file_name_matches[1])
+                    m_planet = float(file_name_matches[2])
+                    epoch = float(file_name_matches[3])
+                    df = pd.read_csv(inject_dir + file, float_precision='round_trip', sep=',',
+                                     usecols=['bjd', 'rv', 'rv_err'])
+                    if len(df) == 0:
+                        found = True
+                        snr = 20
+                        sde = self.SDE_ROCHE
+                        run = 1
+                        mass_found = 20
+                        omega_found = 0
+                        period_found = 0
+                    else:
+
+                        #TODO
+                        self.retrieve_object_data_for_recovery(inject_dir + "/", inject_dir + file)
+
+
+                        period_grid_size = int((max_period_search - self.MIN_SEARCH_PERIOD) * 100 * oversampling)
+                        found, run, snr, sde, period_found, omega_found, mass_found = \
+                            RvFitter.recover_signal(df, period, 3, 0.5, rv_masks, self.star_info.mass, 'log',
+                                                    period_grid_size, self.MIN_SEARCH_PERIOD, max_period_search,
+                                                    snr_threshold, snr_threshold, run_limit)
+                    new_report = {"period": period, "mass": m_planet, "epoch": epoch, "found": found, "snr": snr,
+                                  "sde": sde, "run": run, "mass_found": mass_found,
+                                  "period_found": period_found, "epoch_found": omega_found}
+                    reports_df = reports_df.append(new_report, ignore_index=True)
+                    print("RV P=" + str(period) + ", R=" + str(m_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
+                        found) +
+                          " WITH SNR " + str(snr) + " AND SDE " + str(sde))
+                    reports_df = reports_df.sort_values(['period', 'radius', 'epoch'], ascending=[True, True, True])
+                    reports_df.to_csv(inject_dir + "a_rv_report.csv", index=False)
+                except Exception as e:
+                    traceback.print_exc()
+                    print("File not valid: " + file)
+        self.remove_non_results_files(inject_dir)
 
     def recovery(self, inject_dir, snr_threshold=5, detrend_method=DETREND_BIWEIGHT, detrend_ws=0,
                  transit_template='tls', run_limit=5, custom_search_algorithm=None, max_period_search=25,
@@ -266,12 +406,15 @@ class MATRIX:
                 except Exception as e:
                     traceback.print_exc()
                     print("File not valid: " + file)
+        self.remove_non_results_files(inject_dir)
+
+    def remove_non_results_files(self, inject_dir):
         for file in os.listdir(inject_dir):
-            if file.endswith(".png"):
+            if "rv_thresholds" not in file and "inj-rec" not in file and file.endswith(".png"):
                 os.remove(inject_dir + file)
         if not self.preserve:
             for file in os.listdir(inject_dir):
-                if file.endswith(".csv") and file.startswith("P"):
+                if file.endswith(".csv") and (file.startswith("P") or file.startswith("RV_P")):
                     os.remove(inject_dir + file)
 
     @staticmethod
