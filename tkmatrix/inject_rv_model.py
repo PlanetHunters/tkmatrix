@@ -1,11 +1,6 @@
 import logging
 import os
-
-from ellc import lc
-import numpy as np
 import pandas as pd
-import astropy.constants as ac
-import astropy.units as u
 
 from tkmatrix.rv import RvFitter
 
@@ -14,8 +9,8 @@ class InjectRvModel:
     def __init__(self, inject_dir, time, rv, rv_err, rstar, mstar, t0, period, mplanet):
         self.inject_dir = inject_dir
         self.time = time
-        self.flux = rv
-        self.flux_err = rv_err
+        self.rv = rv
+        self.rv_err = rv_err
         self.rstar = rstar
         self.mstar = mstar
         self.t0 = t0
@@ -29,13 +24,12 @@ class InjectRvModel:
         :param inject_model: the InjectRvModel object to be used as RV source. The result
         is written into a csv file.
         """
-        logging.info('RV P = ' + str(inject_model.period) + ' days, Rp = ' + str(inject_model.rplanet) + ", T0 = " +
+        logging.info('RV P = ' + str(inject_model.period) + ' days, Mp = ' + str(inject_model.mplanet) + ", T0 = " +
                      str(inject_model.t0))
         injected_rv = RvFitter.inject_rv(inject_model.time, inject_model.mstar, inject_model.rstar,
-                                         inject_model.mplanet, inject_model.planet_mass, inject_model.period,
-                                         inject_model.t0)
-        file_name = os.path.join(inject_model.inject_dir + '/RV_P' + str(inject_model.period) + '_R' +
-                                 str(inject_model.rplanet.value) + '_' + str(inject_model.t0) + '.csv')
+                                         inject_model.mplanet, inject_model.period, inject_model.t0)
+        file_name = os.path.join(inject_model.inject_dir + '/RV_P' + str(inject_model.period) + '_M' +
+                                 str(inject_model.mplanet.value) + '_' + str(inject_model.t0) + '.csv')
         lc_df = pd.DataFrame(columns=['bjd', 'rv', 'rv_err'])
         lc_df['bjd'] = inject_model.time
         lc_df['rv'] = inject_model.rv + injected_rv

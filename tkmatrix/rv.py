@@ -16,17 +16,15 @@ class RvFitter:
         super().__init__()
 
     @staticmethod
-    def inject_rv(times, star_mass, rstar, planet_mass, rplanet, period, t0):
-        star_mass = star_mass * u.M_sun
-        rstar = rstar * u.R_sun
-        rplanet = rplanet * u.R_sun
-        planet_mass = planet_mass * u.M_sun
+    def inject_rv(times, star_mass, rstar, planet_mass, period, t0):
+        rplanet = rstar / 50
+        planet_mass = planet_mass.to(u.M_sun)
         period_days = period * u.day
         a = numpy.cbrt((ac.G * star_mass * period_days ** 2) / (4 * numpy.pi ** 2)).to(u.au)
-        model = ellc.rv(
+        model_kms = ellc.rv(
             t_obs=times,
             radius_1=rstar.to(u.au) / a,  # star radius convert from AU to in units of a
-            radius_2=rplanet.to(u.au) / a,  # convert from Rearth (equatorial) into AU and then into units of a
+            radius_2=rplanet / a,  # convert from Rearth (equatorial) into AU and then into units of a
             sbratio=0,
             incl=90,
             t_zero=t0,
@@ -46,8 +44,8 @@ class RvFitter:
             grid_1='default', grid_2='default',
             ld_1='quad', ld_2=None,
             shape_1='sphere', shape_2='sphere',
-            spots_1=None, spots_2=None, flux_weighted=False, verbose=1)
-        injected_rv = numpy.full(len(times), 0) + model[1]
+            spots_1=None, spots_2=None, flux_weighted=False, verbose=0)
+        injected_rv = numpy.full(len(times), 0) + model_kms[0] * 1000 # mult by 1000 because the value comes in km/s
         return injected_rv
 
     @staticmethod
@@ -125,7 +123,7 @@ class RvFitter:
         signal_omega = 0
         signal_msin = 0
         for run in numpy.arange(0, max_runs):
-            period_grid, k_grid, omega_grid, msin_grid, least_squares_grid, argmax, power, snr, SDE = \
+            rv_data, period_grid, k_grid, omega_grid, msin_grid, least_squares_grid, argmax, power, snr, SDE = \
                 RvFitter.recover_periods(df, period_grid_geom, steps_period, period_min, max_period, rv_masks,
                                          star_mass, cpus)
             signal_omega = omega_grid[argmax]
@@ -136,13 +134,13 @@ class RvFitter:
             msin_diff = numpy.abs(msin - signal_msin)
             omega_diff = numpy.abs(omega - signal_omega)
             omega_diff = omega_diff if omega_diff < numpy.pi else numpy.pi - numpy.abs(omega - signal_omega)
-            found = period_diff < period * 0.01 and msin_diff < msin * 0.1
+            found = period_diff / period < 0.01 and msin_diff / msin < 0.5
             if found or snr < min_snr or SDE < min_sde:
                 break
             else:
                 rv_fit = RvFitter.sinfunc(df["bjd"], signal_k, signal_omega, signal_period)
                 df["rv"] = df["rv"] - rv_fit
-        return found, run, snr, sde, signal_period, signal_omega, signal_msin
+        return found, run, snr, SDE, signal_period, signal_omega, signal_msin
 
     @staticmethod
     def recover_period(input):
@@ -166,7 +164,7 @@ class RvFitter:
             least_squares = numpy.sum((input.rv_data - RvFitter.sinfunc(input.time, k, omega, period)) ** 2 /
                                       (input.rv_err ** 2))
         except RuntimeError as e:
-            print("Runtime error for period " + str(input.period))
+            pass
         return (k, omega, k_err, omega_err, least_squares)
 
     @staticmethod

@@ -21,7 +21,32 @@ SNR_THRESHOLD: 5
 OVERSAMPLING: 3
 INITIAL_MASK:
 INITIAL_SMOOTH_ENABLED: False
+# Mask known transiting signals to make the analysis cleaner
 INITIAL_TRANSIT_MASK:
+#  - P: 2.55
+#    D: 91
+#    T0: 1455.32
+# If set, a radial velocities i&r will be done
+RV:
+  OVERSAMPLING: 1
+  RUN_LIMIT: 3
+  SNR_THRESHOLD: 5
+  PHASES:
+  MIN_PERIOD:
+  MAX_PERIOD:
+  STEPS_PERIOD:
+  PERIOD_GRID_GEOM: 'lin'
+  MIN_MASS:
+  MAX_MASS:
+  STEPS_MASS:
+  MASS_GRID_GEOM: 'lin'
+  MAX_PERIOD_SEARCH: 25
+  # Mandatory field where RV measurements are provided
+  FILE:
+  # Mask known RV signals to make the analysis cleaner
+  INITIAL_MASK:
+  #  - P: 2.55
+  #    M: 1.44
 AUTO_DETREND_PERIOD:
 AUTO_DETREND_RATIO: 0.25
 AUTO_DETREND_METHOD: 'cosine'

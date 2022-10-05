@@ -162,11 +162,12 @@ class MATRIX:
         logger.addHandler(handler)
         logging.info("Setup injection directory")
 
-    def inject_rv(self, inject_dir, phases, min_period, max_period, steps_period, min_mass, max_mass, steps_mass,
-                  period_grid_geom="lin", mass_grid_geom="lin"):
+    def inject_rv(self, inject_dir, rv_file, phases, min_period, max_period, steps_period, min_mass, max_mass,
+                  steps_mass, period_grid_geom="lin", mass_grid_geom="lin"):
         """
         Creates the injection of all the synthetic radial velocities planet scenarios
         :param inject_dir: the directory to store all the files
+        :param rv_file: the file with the rv measurements
         :param phases: the number of epochs
         :param min_period: minimum period for the period grid
         :param max_period: maximum period for the period grid
@@ -192,7 +193,7 @@ class MATRIX:
         radius_grid = np.linspace(min_mass, max_mass, steps_mass) if mass_grid_geom == "lin" \
             else np.logspace(np.log10(min_mass), np.log10(max_mass), steps_period)
         inject_models = []
-        rv_df = pd.read_csv(self.rv_file)
+        rv_df = pd.read_csv(rv_file)
         rv_df = rv_df.sort_values(by=['bjd'], ascending=True)
         time = rv_df['bjd']
         rv = rv_df['rv']
@@ -300,7 +301,7 @@ class MATRIX:
         reports_df = pd.DataFrame(columns=['period', 'mass', 'epoch', 'period_found', 'epoch_found', 'mass_found',
                                            'found', 'snr', 'sde', 'run'])
         for file in sorted(os.listdir(inject_dir)):
-            file_name_matches = re.search("RV_P([0-9]+\\.[0-9]+)+_R([0-9]+\\.[0-9]+)_([0-9]+\\.[0-9]+)\\.csv", file)
+            file_name_matches = re.search("RV_P([0-9]+\\.[0-9]+)+_M([0-9]+\\.[0-9]+)_([0-9]+\\.[0-9]+)\\.csv", file)
             if file_name_matches is not None:
                 try:
                     period = float(file_name_matches[1])
@@ -317,11 +318,6 @@ class MATRIX:
                         omega_found = 0
                         period_found = 0
                     else:
-
-                        #TODO
-                        self.retrieve_object_data_for_recovery(inject_dir + "/", inject_dir + file)
-
-
                         period_grid_size = int((max_period_search - self.MIN_SEARCH_PERIOD) * 100 * oversampling)
                         found, run, snr, sde, period_found, omega_found, mass_found = \
                             RvFitter.recover_signal(df, period, 3, 0.5, rv_masks, self.star_info.mass, 'log',
@@ -331,10 +327,10 @@ class MATRIX:
                                   "sde": sde, "run": run, "mass_found": mass_found,
                                   "period_found": period_found, "epoch_found": omega_found}
                     reports_df = reports_df.append(new_report, ignore_index=True)
-                    print("RV P=" + str(period) + ", R=" + str(m_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
+                    print("RV P=" + str(period) + ", M=" + str(m_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
                         found) +
                           " WITH SNR " + str(snr) + " AND SDE " + str(sde))
-                    reports_df = reports_df.sort_values(['period', 'radius', 'epoch'], ascending=[True, True, True])
+                    reports_df = reports_df.sort_values(['period', 'mass', 'epoch'], ascending=[True, True, True])
                     reports_df.to_csv(inject_dir + "a_rv_report.csv", index=False)
                 except Exception as e:
                     traceback.print_exc()
@@ -419,7 +415,7 @@ class MATRIX:
 
     @staticmethod
     def plot_results(object_id, inject_dir, binning=1, xticks=None, yticks=None, period_grid_geom="lin",
-                     radius_grid_geom="lin"):
+                     radius_grid_geom="lin", is_rv=False):
         """
         Generates a heat map with the found/not found results for the period/radius grids
         :param object_id: the id of the target star
@@ -429,14 +425,18 @@ class MATRIX:
         :param yticks: the fixed ticks to be used for the radius grid
         :param period_grid_geom: [lin|log]
         :param radius_grid_geom: [lin|log]
+        :param is_rv: whether to load the rv results or the photometry ones
         """
-        df = pd.read_csv(inject_dir + '/a_tls_report.csv', float_precision='round_trip', sep=',',
-                         usecols=['period', 'radius', 'found', 'sde'])
+        filename = '/a_tls_report.csv' if not is_rv else '/a_rv_report.csv'
+        column = 'radius' if not is_rv else 'mass'
+        column_units = 'R' if not is_rv else 'M'
+        df = pd.read_csv(inject_dir + filename, float_precision='round_trip', sep=',',
+                         usecols=['period', column, 'found', 'sde'])
         min_period = df["period"].min()
         max_period = df["period"].max()
-        min_rad = df["radius"].min()
-        max_rad = df["radius"].max()
-        phases = len(df[df["period"] == df["period"].min()][df["radius"] == df["radius"].min()])
+        min_rad = df[column].min()
+        max_rad = df[column].max()
+        phases = len(df[df["period"] == df["period"].min()][df[column] == df[column].min()])
         phases_str = "phase" if phases == 1 else "phases"
         bin_nums = int(np.ceil(len(df["period"].unique()) / binning))
         if period_grid_geom == 'lin':
@@ -448,9 +448,9 @@ class MATRIX:
                 if max_period - min_period > 0 else np.full((1), min_period)
         else:
             period_grid = np.logspace(np.log10(min_period), np.log10(max_period), bin_nums)
-        bin_nums = int(np.ceil(len(df["radius"].unique()) / binning))
+        bin_nums = int(np.ceil(len(df[column].unique()) / binning))
         if radius_grid_geom == 'lin':
-            step_radius = (max_rad - min_rad) / (len(df["radius"].unique()) - 1)
+            step_radius = (max_rad - min_rad) / (len(df[column].unique()) - 1)
             step_radius = step_radius * binning
             if step_radius <= 0:
                 step_radius = 0.1
@@ -460,15 +460,15 @@ class MATRIX:
             radius_grid = np.round(np.logspace(np.log10(min_rad), np.log10(max_rad), 2), bin_nums)
         f = len(period_grid) / len(radius_grid)
         bins = [period_grid, radius_grid]
-        h1, x, y = np.histogram2d(df['period'][df['found'] == 1], df['radius'][df['found'] == 1], bins=bins)
-        h2, x, y = np.histogram2d(df['period'][df['found'] == 0], df['radius'][df['found'] == 0], bins=bins)
+        h1, x, y = np.histogram2d(df['period'][df['found'] == 1], df[column][df['found'] == 1], bins=bins)
+        h2, x, y = np.histogram2d(df['period'][df['found'] == 0], df[column][df['found'] == 0], bins=bins)
         normed_hist = (100. * h1 / (h1 + h2))
         fig, ax = plt.subplots(figsize=(2.7 * 5, 5))
         im = plt.imshow(normed_hist.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), interpolation='none',
                         aspect='auto', cmap='viridis', vmin=0, vmax=100, rasterized=True)
         plt.colorbar(im, label='Recovery rate (%)')
         plt.xlabel('Injected period (days)')
-        plt.ylabel(r'Injected radius (R$_\oplus$)')
+        plt.ylabel(r'Injected radius (' + column_units + '$_\oplus$)')
         ax.set_title(object_id + " - P/R recovery (" + str(phases) + " " + phases_str + ")")
         if xticks is not None:
             plt.xticks(xticks)
@@ -479,7 +479,7 @@ class MATRIX:
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
         if yticks is not None:
             plt.xticks(yticks)
-        plt.savefig(inject_dir + '/inj-rec.png', bbox_inches='tight', dpi=200)
+        plt.savefig(inject_dir + '/inj-rec' + '-rv' if is_rv else '' + '.png', bbox_inches='tight', dpi=200)
         plt.close()
 
     @staticmethod
