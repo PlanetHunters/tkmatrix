@@ -1,6 +1,7 @@
 import os
 from multiprocessing import Pool
 
+import lightkurve
 from astropy import units as u
 import astropy.constants as ac
 import matplotlib.pyplot as plt
@@ -123,18 +124,35 @@ class RvFitter:
         signal_omega = 0
         signal_msin = 0
         for run in numpy.arange(0, max_runs):
-            rv_data, period_grid, k_grid, omega_grid, msin_grid, least_squares_grid, argmax, power, snr, SDE = \
-                RvFitter.recover_periods(df, period_grid_geom, steps_period, period_min, max_period, rv_masks,
+            rv_data, signal_period, signal_k, signal_omega, signal_msin, least_squares_grid, argmax, power, snr, SDE = \
+                RvFitter.recover_strongest_signal(df, period_grid_geom, steps_period, period_min, max_period, rv_masks,
                                          star_mass, cpus)
-            signal_omega = omega_grid[argmax]
-            signal_k = k_grid[argmax]
-            signal_msin = msin_grid[argmax]
-            signal_period = period_grid[argmax]
             period_diff = numpy.abs(period - signal_period)
             msin_diff = numpy.abs(msin - signal_msin)
             omega_diff = numpy.abs(omega - signal_omega)
             omega_diff = omega_diff if omega_diff < numpy.pi else numpy.pi - numpy.abs(omega - signal_omega)
-            found = period_diff / period < 0.01 and msin_diff / msin < 0.5
+            found = period_diff / period < 0.01 #and msin_diff / msin < 0.5
+
+            # rv_fit = RvFitter.sinfunc(df["bjd"], signal_k, signal_omega, signal_period)
+            # import lightkurve
+            # df1 = df.copy()
+            # lc = lightkurve.LightCurve(time=df1['bjd'], flux=df1['rv'])
+            # periodogram = lc.to_periodogram(oversample_factor=10, maximum_period=25, minimum_period=0.4)
+            # periodogram.plot(scale='log')
+            # plt.show()
+            #plt.plot(periodogram.period.value, periodogram.power.value / numpy.std(periodogram.power))
+            #plt.show()
+            # df1["rv_fit"] = RvFitter.sinfunc(df1["bjd"], signal_k, signal_omega, signal_period)
+            # df1["bjd_fold"] = (df1["bjd"] - df1["bjd"].min()) % signal_period
+            # df1 = df1.sort_values(by=['bjd_fold'], ascending=True)
+            # plt.errorbar(x=df1["bjd_fold"], y=df1["rv"], yerr=df1["rv_err"], fmt="o", color="blue", ecolor="cyan",
+            #              label="RV (m/s)")
+            # plt.plot(df1["bjd_fold"], df1["rv_fit"], color="black", label="X-axis motion")
+            # plt.title("Fit for P=" + str(signal_period) + "d")
+            # plt.xlabel("Phase")
+            # plt.ylabel("RV (m/s)")
+            # plt.show()
+
             if found or snr < min_snr or SDE < min_sde:
                 break
             else:
@@ -148,24 +166,54 @@ class RvFitter:
         k_err = 0
         omega = 0
         omega_err = 0
-        least_squares = 0
+        least_squares = numpy.inf
+        period = input.period
         try:
             if input.msin is not None and input.star_mass is not None:
-                k = RvFitter.compute_semiamplitude_from_mmin(input.msin, input.period, input.star_mass)
-                k_max = k + 0.01
+                k_p0 = RvFitter.compute_semiamplitude_from_mmin(input.msin, input.period, input.star_mass)
+                k_p0_max = k + 0.01
             else:
-                k = 0.
-                k_max = numpy.inf
-            popt, pcov = scipy.optimize.curve_fit(RvFitter.sinfunc, input.time, input.rv_data, sigma=input.rv_err,
-                                                  bounds=([k, 0., input.period], [k_max, numpy.pi, input.period + 0.00001]))
-            perr = numpy.sqrt(numpy.diag(pcov))
-            k_err, omega_err, period_err = perr
-            k, omega, period = popt
-            least_squares = numpy.sum((input.rv_data - RvFitter.sinfunc(input.time, k, omega, period)) ** 2 /
-                                      (input.rv_err ** 2))
+                k_p0_max = numpy.max(input.rv_data)
+                k_p0 = 0
+            for omega_p0 in numpy.linspace(0, numpy.pi * 2 * 0.75, 4):
+                popt, pcov = scipy.optimize.curve_fit(RvFitter.sinfunc, input.time, input.rv_data, sigma=input.rv_err,
+                                                      p0=[k_p0_max, omega_p0, input.period],
+                                                      bounds=([k_p0, 0., input.period],
+                                                              [k_p0_max, 2 * numpy.pi, input.period + 0.00001]))
+                perr = numpy.sqrt(numpy.diag(pcov))
+                k_err_tmp, omega_err_tmp, period_err_tmp = perr
+                k_tmp, omega_tmp, period_tmp = popt
+                least_squares_tmp = numpy.sum((input.rv_data -
+                                           RvFitter.sinfunc(input.time, k_tmp, omega_tmp, period_tmp)) ** 2 /
+                                          (input.rv_err ** 2))
+
+                # rv_fit = RvFitter.sinfunc(input.time, k_tmp, omega_tmp, period_tmp)
+                # import pandas as pd
+                # df1 = pd.DataFrame(columns=['bjd', 'rv', 'rv_err'])
+                # df1['bjd'] = input.time
+                # df1['rv'] = input.rv_data
+                # df1['rv_err'] = input.rv_err
+                # df1["rv_fit"] = RvFitter.sinfunc(df1["bjd"], k_tmp, omega_tmp, period_tmp)
+                # df1["bjd_fold"] = (df1["bjd"] - df1["bjd"].min()) % period_tmp
+                # df1 = df1.sort_values(by=['bjd_fold'], ascending=True)
+                # plt.errorbar(x=df1["bjd_fold"], y=df1["rv"], yerr=df1["rv_err"], fmt="o", color="blue", ecolor="cyan",
+                #              label="RV (m/s)")
+                # plt.plot(df1["bjd_fold"], df1["rv_fit"], color="black", label="X-axis motion")
+                # plt.title("Fit for P=" + str(period_tmp) + "d")
+                # plt.xlabel("Phase")
+                # plt.ylabel("RV (m/s)")
+                # plt.show()
+
+                if least_squares_tmp < least_squares:
+                    k = k_tmp
+                    omega = omega_tmp
+                    k_err = k_err_tmp
+                    omega_err = omega_err_tmp
+                    least_squares = least_squares_tmp
+                    period = period_tmp
         except RuntimeError as e:
             pass
-        return (k, omega, k_err, omega_err, least_squares)
+        return (period, k, omega, k_err, omega_err, least_squares)
 
     @staticmethod
     def recover_periods(rv_df, period_grid_geom='lin', steps_period=None, period_min=0.5, max_period=None,
@@ -195,14 +243,16 @@ class RvFitter:
         inputs = []
         for period in period_grid:
             inputs.append(RecoverPeriodInput(time, rv_data, rv_err, period))
+        period_grid = []
         with Pool(processes=cpus) as pool:
             recovered_outputs = pool.map(RvFitter.recover_period, inputs)
         for output in recovered_outputs:
             k_grid.append(output[0])
-            omega_grid.append(output[1])
-            k_err_grid.append(output[2])
-            omega_err_grid.append(output[3])
-            least_squares_grid.append(output[4])
+            period_grid.append(output[1])
+            omega_grid.append(output[2])
+            k_err_grid.append(output[3])
+            omega_err_grid.append(output[4])
+            least_squares_grid.append(output[5])
         least_squares_grid = numpy.array(least_squares_grid)
         least_squares_grid[least_squares_grid == 0] = numpy.max(least_squares_grid)
         msin_grid = RvFitter.compute_mmin_from_semiamplitude(period_grid, k_grid, star_mass)
@@ -219,15 +269,54 @@ class RvFitter:
         return rv_data, period_grid, k_grid, omega_grid, msin_grid, least_squares_grid, argmax_sde, power, snr, SDE
 
     @staticmethod
+    def recover_strongest_signal(rv_df, period_grid_geom='lin', steps_period=None, period_min=0.5, max_period=None,
+                        rv_masks=None, star_mass=None, cpus=os.cpu_count() - 1):
+        if rv_masks is None:
+            rv_masks = []
+        if steps_period is None:
+            steps_period = int(rv_df["bjd"].max() - rv_df["bjd"].min())
+        if max_period is None:
+            max_period = (rv_df["bjd"].max() - rv_df["bjd"].min()) * 2
+        time = rv_df["bjd"].to_numpy()
+        rv_data = rv_df["rv"].to_numpy()
+        rv_err = rv_df["rv_err"].to_numpy()
+        rv_data = RvFitter.mask_signals(rv_df, rv_masks, star_mass)
+        lc = lightkurve.LightCurve(time=time, flux=rv_data)
+        periodogram = lc.to_periodogram(oversample_factor=10, minimum_period=0.4, maximum_period=max_period)
+        period_grid = periodogram.period.value
+        power = periodogram.power.value
+        sde_power = power / numpy.std(power)
+        argmax_sde = numpy.nanargmax(sde_power)
+        max_sde = sde_power[argmax_sde]
+        strongest_period = period_grid[argmax_sde] #periodogram.periods[argmax_sde]
+        k = 0
+        k_err = 0
+        omega = 0
+        omega_err = 0
+        least_squares = 0
+        inputs = []
+        strongest_period, k, omega, k_err, omega_err, least_squares = \
+            RvFitter.recover_period(RecoverPeriodInput(time, rv_data, rv_err, strongest_period))
+        msin = RvFitter.compute_mmin_from_semiamplitude([strongest_period], [k], star_mass)[0]
+        snr_window_size = (max_period - period_min) / 20
+        indexes_around = numpy.argwhere((period_grid > strongest_period - snr_window_size / 2) &
+                                        (period_grid < strongest_period + snr_window_size / 2)).flatten()
+
+        median_power_around = numpy.nanmedian(numpy.array(power)[indexes_around])
+        snr = power[argmax_sde] / median_power_around
+        sde = max_sde
+        return rv_data, strongest_period, k, omega, msin, least_squares, argmax_sde, power, snr, sde
+
+    @staticmethod
     def mask_signals(rv_df, rv_masks, star_mass):
         time = rv_df["bjd"].to_numpy()
         rv_data = rv_df["rv"].to_numpy()
         rv_err = rv_df["rv_err"].to_numpy()
         for rv_mask in rv_masks:
-            k, omega, k_err, omega_err, least_squares = \
+            period, k, omega, k_err, omega_err, least_squares = \
                 RvFitter.recover_period(RecoverPeriodInput(time, rv_data, rv_err, rv_mask['P'],
                                                            rv_mask['M'] if 'M' in rv_mask else None, star_mass))
-            rv_subtract = RvFitter.sinfunc(time, k, omega, rv_mask['P'])
+            rv_subtract = RvFitter.sinfunc(time, k, omega, period)
             rv_data = rv_data - rv_subtract
         return rv_data
 

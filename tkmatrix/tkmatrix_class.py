@@ -468,7 +468,7 @@ class MATRIX:
                         aspect='auto', cmap='viridis', vmin=0, vmax=100, rasterized=True)
         plt.colorbar(im, label='Recovery rate (%)')
         plt.xlabel('Injected period (days)')
-        plt.ylabel(r'Injected radius (' + column_units + '$_\oplus$)')
+        plt.ylabel(r'Injected ' + 'radius' if not is_rv else 'mass' + ' (' + column_units + '$_\oplus$)')
         ax.set_title(object_id + " - P/R recovery (" + str(phases) + " " + phases_str + ")")
         if xticks is not None:
             plt.xticks(xticks)
