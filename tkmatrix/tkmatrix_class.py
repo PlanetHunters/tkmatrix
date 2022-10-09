@@ -265,6 +265,13 @@ class MATRIX:
             RvFitter.recover_periods(rv_df, period_grid_geom='log', steps_period=period_grid_size, period_min=0.5,
                                      max_period=max_period_search, rv_masks=rv_masks, star_mass=self.star_info.mass,
                                      cpus=cores)
+        positive_power_mask = power > np.percentile(power, 1)
+        power = np.array(power)[positive_power_mask]
+        period_grid = np.array(period_grid)[positive_power_mask]
+        k_grid = np.array(k_grid)[positive_power_mask]
+        omega_grid = np.array(omega_grid)[positive_power_mask]
+        msin_grid = np.array(msin_grid)[positive_power_mask]
+        least_squares_grid = np.array(least_squares_grid)[positive_power_mask]
         fig, axs = plt.subplots(5, 1, figsize=(20, 12))
         lc = lightkurve.LightCurve(time=rv_df['bjd'], flux=rv_df['rv'])
         periodogram = lc.to_periodogram(oversample_factor=10, maximum_period=max_period_search, minimum_period=0.5)
@@ -278,7 +285,7 @@ class MATRIX:
         bin_means_period = binned_statistic(period_grid, period_grid, bins=50)[0]
         axs[2].bar(bin_means_period, bin_means_msin, width=1.0, color="blue")
         axs[2].set_xscale('log', base=10)
-        axs[2].set_title("Mmin detections")
+        axs[2].set_title("Binned Mmin detections")
         axs[2].set_xlabel("Period (d)")
         axs[2].set_ylabel("Mmin (M$_\oplus$)")
         axs[3].plot(period_grid, msin_grid, color="blue")
@@ -286,7 +293,7 @@ class MATRIX:
         axs[3].set_title("Mmin detections")
         axs[3].set_xlabel("Period (d)")
         axs[3].set_ylabel("Mmin (M$_\oplus$)")
-        axs[4].plot(period_grid, power / np.std(power), color="blue", label="X-axis motion")
+        axs[4].plot(period_grid, power, color="blue", label="X-axis motion")
         axs[4].set_xscale('log', base=10)
         axs[4].set_title("SDE detections")
         axs[4].set_xlabel("Period (d)")

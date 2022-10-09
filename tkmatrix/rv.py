@@ -243,12 +243,12 @@ class RvFitter:
         inputs = []
         for period in period_grid:
             inputs.append(RecoverPeriodInput(time, rv_data, rv_err, period))
-        period_grid = []
         with Pool(processes=cpus) as pool:
             recovered_outputs = pool.map(RvFitter.recover_period, inputs)
+        period_grid = []
         for output in recovered_outputs:
-            k_grid.append(output[0])
-            period_grid.append(output[1])
+            period_grid.append(output[0])
+            k_grid.append(output[1])
             omega_grid.append(output[2])
             k_err_grid.append(output[3])
             omega_err_grid.append(output[4])
@@ -257,8 +257,7 @@ class RvFitter:
         least_squares_grid[least_squares_grid == 0] = numpy.max(least_squares_grid)
         msin_grid = RvFitter.compute_mmin_from_semiamplitude(period_grid, k_grid, star_mass)
         SR, power_raw, power, SDE_raw, SDE = RvFitter.spectra(numpy.array(least_squares_grid))
-        sde_power = power / numpy.std(power)
-        argmax_sde = numpy.nanargmax(sde_power)
+        argmax_sde = numpy.nanargmax(power)
         max_msin = msin_grid[argmax_sde]
         period_max_msin = period_grid[argmax_sde]
         snr_window_size = (max_period - period_min) / 20
