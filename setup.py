@@ -25,7 +25,7 @@ setuptools.setup(
                         'configparser==5.0.1',
                         "corner==2.1.0",
                         "cython==0.29.21",
-                        "ellc==1.8.5",
+                        "ellc==1.8.7",
                         "lcbuilder==0.10.3",
                         "matplotlib==3.5.2",
                         "mock==4.0.3",
