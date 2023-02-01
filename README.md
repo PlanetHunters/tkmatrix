@@ -31,7 +31,12 @@ We are planning to write a scientific paper based on the usage of MATRIX. In the
 ## Installation
 Supported Python versions: 3.8, 3.9. Install with:
 
-`python3 -m pip install tkmatrix`
+```
+python3.8 -m pip install numpy==1.22.4
+python3.8 -m pip install -r requirements.txt
+```
+
+You can find the requirements.txt file [here](https://github.com/PlanetHunters/tkmatrix/blob/master/requirements.txt). 
 
 ## Tests
 We use [tox](https://tox.readthedocs.io) to test MATRIX under all the supported Python versions. Usage:
@@ -39,12 +44,12 @@ We use [tox](https://tox.readthedocs.io) to test MATRIX under all the supported 
 `tox`
 
 ## Examples
-Under the examples directory.
+Under the [examples](https://github.com/PlanetHunters/tkmatrix/tree/master/examples) directory.
 
 ## Execution
 Just execute the command below this text. Take into accont that the `user-properties.yaml` file needs to include several mandatory options. Please refer to the example file under the examples directory.
 
-`python3 -m tkmatrix --properties user-properties.yaml`
+`python3.8 -m tkmatrix --properties user-properties.yaml`
 
 ## By-products
 * a_tls_report.csv: A file containing a csv formatted output given the orbital period, the radius and the epoch besides the outputs with found status, SNR and SDE of the results.
