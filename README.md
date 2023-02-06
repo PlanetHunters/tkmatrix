@@ -8,14 +8,19 @@ ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 ## Citation
 We are planning to write a scientific paper based on the usage of MATRIX. In the meantime, we encourage the users to cite the Software DOI in their research:
 ```
-@software{martin_devora_pajares_2022_6570831,
-  author       = {Martín Dévora-Pajares and Francisco J. Pozuelos},
-  title        = {{MATRIX: Multi-phAse Transits Recovery from Injected eXoplanets}},
-  month        = may,
-  year         = 2022,
-  publisher    = {Zenodo},
-  doi          = {10.5281/zenodo.6570831},
-  url          = {https://doi.org/10.5281/zenodo.6570831}
+@MISC{2022zndo...6570831D,
+       author = {{D{\'e}vora-Pajares}, Mart{\'\i}n and {Pozuelos}, Francisco J.},
+        title = "{MATRIX: Multi-phAse Transits Recovery from Injected eXoplanets}",
+     keywords = {exoplanets, transits, injection \& recovery, python},
+ howpublished = {Zenodo},
+         year = 2022,
+        month = may,
+          eid = {10.5281/zenodo.6570831},
+          doi = {10.5281/zenodo.6570831},
+      version = {0.3.17},
+    publisher = {Zenodo},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2022zndo...6570831D},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 ```
 
