@@ -130,3 +130,7 @@ dmypy.json
 
 *_ir*/
 .idea
+/tkmatrix-reqs/
+/tkmatrixtest/
+/docs/jupyter_execute/
+/docs/source/_autosummary/
