@@ -166,6 +166,7 @@ class MATRIX:
                   steps_mass, period_grid_geom="lin", mass_grid_geom="lin"):
         """
         Creates the injection of all the synthetic radial velocities planet scenarios
+
         :param inject_dir: the directory to store all the files
         :param rv_file: the file with the rv measurements
         :param phases: the number of epochs
@@ -212,6 +213,7 @@ class MATRIX:
                period_grid_geom="lin", radius_grid_geom="lin", inject_dir=None):
         """
         Creates the injection of all the synthetic transiting planet scenarios
+
         :param phases: the number of epochs
         :param min_period: minimum period for the period grid
         :param max_period: maximum period for the period grid
@@ -350,6 +352,7 @@ class MATRIX:
         """
         Given the injection dir, it will iterate over all the csvs matching light curves and try the recovery of their
         transit parameters (period and epoch).
+
         :param inject_dir: the directory to search for light curves
         :param snr_threshold: the SNR value to break the search for each curve
         :param detrend_ws: the window size to detrend the curves
@@ -412,6 +415,12 @@ class MATRIX:
         self.remove_non_results_files(inject_dir)
 
     def remove_non_results_files(self, inject_dir):
+        """
+        Deletes all the files that belong to the injection stage are hence are not necessary for the results
+        interpretation. If `preserve` was true, nothing is removed.
+
+        :param inject_dir:
+        """
         for file in os.listdir(inject_dir):
             if "rv_thresholds" not in file and "inj-rec" not in file and file.endswith(".png"):
                 os.remove(inject_dir + file)
@@ -425,6 +434,7 @@ class MATRIX:
                      radius_grid_geom="lin", is_rv=False):
         """
         Generates a heat map with the found/not found results for the period/radius grids
+
         :param object_id: the id of the target star
         :param inject_dir: the inject directory where the result files are stored
         :param binning: the binning to be applied to the grids
@@ -493,7 +503,8 @@ class MATRIX:
     def plot_diff(object_id, inject_dir1, inject_dir2, output_dir, binning=1, xticks=None, yticks=None,
                   period_grid_geom="lin", radius_grid_geom="lin"):
         """
-        Plots the differente between two results directories.
+        Plots the difference between two results directories.
+
         :param object_id: the target star id
         :param inject_dir1: the results dir number 1
         :param inject_dir2: the results dir number 2
@@ -624,11 +635,14 @@ class MATRIX:
             run = run + 1
         return found_signal, results.snr, results.SDE, run, results.duration, results.period, results.T0
 
-    def __equal(self, a, b, tolerance=0.01):
-        return np.abs(a - b) < tolerance
-
     @staticmethod
     def num_of_zeros(n):
+        """
+        Counts the number of zeros in a decimal
+
+        :param n: the number
+        :return: the number of zero positions
+        """
         if n.is_integer():
             return 0
         s = '{:.16f}'.format(n).split('.')[1]

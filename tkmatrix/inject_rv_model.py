@@ -6,6 +6,9 @@ from tkmatrix.rv import RvFitter
 
 
 class InjectRvModel:
+    """
+    Used to inject a Radial Velocity signal
+    """
     def __init__(self, inject_dir, time, rv, rv_err, rstar, mstar, t0, period, mplanet):
         self.inject_dir = inject_dir
         self.time = time
@@ -21,8 +24,8 @@ class InjectRvModel:
     def make_model(inject_model):
         """
         Creates an injected RV curve given the provided InjectRvModel parameters instance.
-        :param inject_model: the InjectRvModel object to be used as RV source. The result
-        is written into a csv file.
+
+        :param inject_model: the InjectRvModel object to be used as RV source. The result is written into a csv file.
         """
         logging.info('RV P = ' + str(inject_model.period) + ' days, Mp = ' + str(inject_model.mplanet) + ", T0 = " +
                      str(inject_model.t0))

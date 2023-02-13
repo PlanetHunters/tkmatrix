@@ -12,12 +12,37 @@ import scipy
 from scipy.optimize import differential_evolution
 
 
+class RecoverPeriodInput:
+    """
+    Used as input for the RV recovery stage
+    """
+    def __init__(self, time, rv_data, rv_err, period, msin=None, star_mass=None):
+        self.time = time
+        self.rv_data = rv_data
+        self.rv_err = rv_err
+        self.period = period
+        self.msin = msin
+        self.star_mass = star_mass
+
+
 class RvFitter:
+    """Main class used for RV injection and recovery"""
     def __init__(self) -> None:
         super().__init__()
 
     @staticmethod
     def inject_rv(times, star_mass, rstar, planet_mass, period, t0):
+        """
+        Creates a synthetic signal of a planet with a given mass, period and t0
+
+        :param times: the time series
+        :param star_mass: the star mass
+        :param rstar: the star radius
+        :param planet_mass: the synthetic planet mass
+        :param period: the synthetic planet period
+        :param t0: the synthetic planet epoch
+        :return: the injected RV data
+        """
         rplanet = rstar / 50
         planet_mass = planet_mass.to(u.M_sun)
         period_days = period * u.day
@@ -51,14 +76,39 @@ class RvFitter:
 
     @staticmethod
     def sinfunc(t, k, omega, period):
+        """
+        Computes the RV measurement for the given times, semi-amplitude omega and period.
+
+        :param t: the time series
+        :param k: the semi-amplitude
+        :param omega: the omega value
+        :param period: the period of the planet
+        :return: the RV expected measurements
+        """
         return k * numpy.cos(omega + t * 2 * numpy.pi / period)
 
     @staticmethod
     def compute_semiamplitude_from_mmin(mmin, period, star_mass):
+        """
+        Calculates the semi-amplitude from the minimum mass, period and star mass
+
+        :param mmin: the mass min value
+        :param period: the period
+        :param star_mass: the star mass
+        :return: the semi-amplitude value
+        """
         return mmin / ((star_mass ** (2. / 3.)) * (period ** (1. / 3.)) / 0.64)
 
     @staticmethod
     def compute_mmin_from_semiamplitude(period_grid, k_grid, star_mass):
+        """
+        Calculates the minimum mass from a grid of periods and semiamplitudes
+
+        :param period_grid: the period grid
+        :param k_grid: the semi-amplitude grid
+        :param star_mass: the star mass
+        :return: the minimum masses grid
+        """
         m_min = []
         for i in numpy.arange(0, len(period_grid), 1):
             m_min_value = k_grid[i] * (star_mass ** (2./3.)) * (period_grid[i] ** (1./3.)) / 0.64
@@ -67,7 +117,12 @@ class RvFitter:
 
     @staticmethod
     def running_median(data, kernel):
-        """Returns sliding median of width 'kernel' and same length as data """
+        """Returns sliding median of width 'kernel' and same length as data
+
+        :param data: the data for the running_median to be applied to
+        :param kernel: the kernel size for the running_median
+        :return: the data after the running median
+        """
         idx = numpy.arange(kernel) + numpy.arange(len(data) - kernel + 1)[:, None]
         med = numpy.median(data[idx], axis=1)
 
@@ -84,6 +139,14 @@ class RvFitter:
 
     @staticmethod
     def spectra(chi2, oversampling_factor=1, kernel_size=30):
+        """
+        Computes the SDE for a residuals series.
+
+        :param chi2: the residuals list
+        :param oversampling_factor: the oversampling factor
+        :param kernel_size: the kernel size for the SDE computation
+        :return: all the computed data
+        """
         SR = numpy.min(chi2) / chi2
         SDE_raw = (1 - numpy.mean(SR)) / numpy.std(SR)
 
@@ -161,7 +224,7 @@ class RvFitter:
         return found, run, snr, SDE, signal_period, signal_omega, signal_msin
 
     @staticmethod
-    def recover_period(input):
+    def recover_period(input: RecoverPeriodInput):
         k = 0
         k_err = 0
         omega = 0
@@ -318,12 +381,3 @@ class RvFitter:
             rv_subtract = RvFitter.sinfunc(time, k, omega, period)
             rv_data = rv_data - rv_subtract
         return rv_data
-
-class RecoverPeriodInput:
-    def __init__(self, time, rv_data, rv_err, period, msin=None, star_mass=None):
-        self.time = time
-        self.rv_data = rv_data
-        self.rv_err = rv_err
-        self.period = period
-        self.msin = msin
-        self.star_mass = star_mass

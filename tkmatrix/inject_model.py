@@ -9,6 +9,9 @@ import astropy.units as u
 
 
 class InjectModel:
+    """
+    Class used to create a synthetic light curve.
+    """
     def __init__(self, inject_dir, time, flux, flux_err, rstar, mstar, t0, period, rplanet, exposure_time, ab):
         self.inject_dir = inject_dir
         self.time = time
@@ -25,9 +28,9 @@ class InjectModel:
     @staticmethod
     def make_model(inject_model):
         """
-        Creates an injected transit curve given the provided InjectMOdel parameters instance.
-        :param inject_model: the InjectModel object to be used as transit source. The result
-        is written into a csv file.
+        Creates an injected transit curve given the provided InjectModel parameters instance.
+
+        :param inject_model: the InjectModel object to be used as transit source. The result is written into a csv file.
         """
         logging.info('P = ' + str(inject_model.period) + ' days, Rp = ' + str(inject_model.rplanet) + ", T0 = " +
                      str(inject_model.t0))
