@@ -5,7 +5,7 @@ rm dist* -r
 rm -r .tox
 rm -r .pytest_cache
 rm -r build
-rm -r sherlockpipe-reqs
+rm -r tkmatrix-reqs
 rm -R *egg-info
 set -e
 
@@ -19,7 +19,7 @@ if ! [[ -z ${tests_results} ]]; then
   rm -r .tox
   rm -r .pytest_cache
   rm -r build
-  rm -r sherlockpipe-reqs
+  rm -r tkmatrix-reqs
   rm -R *egg-info
   set -e
   python3.8 -m venv tkmatrix-reqs
