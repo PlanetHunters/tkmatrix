@@ -43,7 +43,7 @@ Therefore, once you have got the OS tools, the *SHERLOCK* package can be install
 ``python3 -m pip install -r requirements.txt``
 
 Where the ``requirements.txt`` file should contain the same than
-`requirements.txt <https://github.com/PlanetHunters/matrix/blob/master/requirements.txt>`_.
+`requirements.txt <https://github.com/PlanetHunters/tkmatrix/blob/master/requirements.txt>`_.
 
 An additional installation method is running the next commands:
 
@@ -54,7 +54,7 @@ An additional installation method is running the next commands:
 ``python3 -m pip install tkmatrix``
 
 You can also use our Docker image from `DockerHub <https://hub.docker.com/repository/docker/sherlockpipe/matrix>`_
-or build it from our `Dockerfile <https://github.com/PlanetHunters/matrix/blob/master/docker/Dockerfile>`_. Therefore, you
+or build it from our `Dockerfile <https://github.com/PlanetHunters/tkmatrix/blob/master/docker/Dockerfile>`_. Therefore, you
 can also use as a Singularity container meanwhile they support Docker.
 
 -------------
@@ -63,7 +63,7 @@ Dependencies
 
 All the needed dependencies should be included by your `pip` installation of *MATRIX*. If you are
 interested you can inspect the requirements list under
-`setup.py <https://github.com/PlanetHunters/matrix/blob/master/setup.py>`_.
+`setup.py <https://github.com/PlanetHunters/tkmatrix/blob/master/setup.py>`_.
 
 -----------
 Integration
@@ -90,5 +90,5 @@ This suite tests several points from the pipeline for the supported *Python* ver
 * Different kind of short **MATRIX** executions.
 
 In case you want to test the entire *MATRIX* functionality we encourage you to
-run some (or all) the `manual examples <https://github.com/PlanetHunters/matrix/tree/master/examples>`_.
+run some (or all) the `manual examples <https://github.com/PlanetHunters/tkmatrix/tree/master/examples>`_.
 If so, please read the instructions provided there to execute them.
