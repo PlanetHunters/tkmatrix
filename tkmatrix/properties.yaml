@@ -18,7 +18,7 @@ CPUS:
 FIT_METHOD: 'tls'
 RUN_LIMIT: 5
 SNR_THRESHOLD: 5
-OVERSAMPLING: 3
+OVERSAMPLING: 1
 INITIAL_MASK:
 INITIAL_SMOOTH_ENABLED: False
 # Mask known transiting signals to make the analysis cleaner
