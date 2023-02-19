@@ -1,6 +1,8 @@
 import os
 import shutil
 import unittest
+
+import lcbuilder.constants
 import pytest
 from lcbuilder.star.starinfo import StarInfo
 
@@ -10,7 +12,7 @@ from tkmatrix.tkmatrix_class import MATRIX
 class TestsMatrix(unittest.TestCase):
     def test_inject_one(self):
         target = "TIC 220513363"
-        matrix = MATRIX(target, [1], ".", exposure_time=120)
+        matrix = MATRIX(target, [1], lcbuilder.constants.SPOC_AUTHOR, ".", exposure_time=120)
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
@@ -40,7 +42,7 @@ class TestsMatrix(unittest.TestCase):
 
     def test_inject_one_preserve(self):
         target = "TIC 220513363"
-        matrix = MATRIX(target, [1], ".", True, exposure_time=120)
+        matrix = MATRIX(target, [1], lcbuilder.constants.SPOC_AUTHOR, ".", True, exposure_time=120)
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
@@ -53,7 +55,7 @@ class TestsMatrix(unittest.TestCase):
 
     def test_inject_four(self):
         target = "TIC 220513363"
-        matrix = MATRIX(target, [1], ".", exposure_time=120)
+        matrix = MATRIX(target, [1], lcbuilder.constants.SPOC_AUTHOR, ".", exposure_time=120)
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5.1, 2, 3, 3.1, 2)
@@ -64,7 +66,7 @@ class TestsMatrix(unittest.TestCase):
 
     def test_inject_multiphase(self):
         target = "TIC 220513363"
-        matrix = MATRIX(target, [1], ".", exposure_time=120)
+        matrix = MATRIX(target, [1], lcbuilder.constants.SPOC_AUTHOR, ".", exposure_time=120)
         inject_dir = None
         try:
             inject_dir = matrix.inject(2, 5, 5, 1, 3, 3, 1)
@@ -75,7 +77,7 @@ class TestsMatrix(unittest.TestCase):
 
     def test_inject_inputs(self):
         target = "TIC 305048087"
-        matrix = MATRIX(target, [2], ".", exposure_time=120)
+        matrix = MATRIX(target, [2], lcbuilder.constants.SPOC_AUTHOR, ".", exposure_time=120)
         inject_dir = None
         with(pytest.raises(AssertionError)):
             inject_dir = matrix.inject(2, 5, 5.1, 2, 3, 3.1, "ho")
@@ -114,7 +116,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir1 = None
         inject_dir2 = None
         target = "TIC 305048087"
-        matrix = MATRIX(target, [2], ".", exposure_time=120)
+        matrix = MATRIX(target, [2], lcbuilder.constants.SPOC_AUTHOR, ".", exposure_time=120)
         try:
             inject_dir1 = matrix.inject(2, 5, 5, 1, 3, 3, 1)
             self.assertTrue(os.path.isdir(inject_dir1))
@@ -129,7 +131,7 @@ class TestsMatrix(unittest.TestCase):
     def test_star_info(self):
         target = "TIC 220513363"
         star_info = StarInfo(target, (0.2, 0.5), 2000, 1.2, None, None, 0.5, 0.1, 0.2, 0.7, 0.15, 0.05, None, None)
-        matrix = MATRIX(target, [1], ".", False, star_info, exposure_time=120)
+        matrix = MATRIX(target, [1], lcbuilder.constants.SPOC_AUTHOR, ".", False, star_info, exposure_time=120)
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
@@ -145,7 +147,7 @@ class TestsMatrix(unittest.TestCase):
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
-        matrix = MATRIX(target, [1], ".", exposure_time=120)
+        matrix = MATRIX(target, [1], lcbuilder.constants.SPOC_AUTHOR, ".", exposure_time=120)
         inject_dir = None
         try:
             inject_dir = matrix.inject(1, 5, 5, 1, 3, 3, 1)
