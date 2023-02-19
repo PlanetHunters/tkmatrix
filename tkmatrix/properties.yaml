@@ -1,6 +1,11 @@
+# The target mission name [TIC XXXX, KIC XXXX, EPIC XXX]
 TARGET:
+# The file containing the original light curve in case it is user-provided
 FILE:
+# The sectors to be used to download the target's data
 SECTORS:
+# The author of the light curve data product [SPOC, Kepler, K2, TESS-SPOC, ELEANOR]
+AUTHOR:
 MIN_PERIOD:
 MAX_PERIOD:
 STEPS_PERIOD:

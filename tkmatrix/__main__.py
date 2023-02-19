@@ -86,6 +86,7 @@ if __name__ == '__main__':
     matrix_user_properties["CPUS"] = get_cpus()
     target = matrix_user_properties["TARGET"]
     file = matrix_user_properties["FILE"]
+    author = matrix_user_properties["AUTHOR"]
     star_info = get_star_info(matrix_user_properties, target)
     custom_search = extract_custom_class(matrix_user_properties["CUSTOM_SEARCH_ALGORITHM"])
     prepare_algorithm = extract_custom_class(matrix_user_properties["PREPARE_ALGORITHM"])
@@ -112,7 +113,7 @@ if __name__ == '__main__':
     cache_dir = matrix_user_properties["CACHE_DIR"]
     if cache_dir is None:
         cache_dir = os.path.expanduser('~') + "/"
-    ir = MATRIX(target, matrix_user_properties["SECTORS"], args.dir, args.preserve, star_info, file, exptime,
+    ir = MATRIX(target, matrix_user_properties["SECTORS"], author, args.dir, args.preserve, star_info, file, exptime,
                 initial_mask, initial_transit_mask, eleanor_corr_flux, outliers_sigma, high_rms_enabled,
                 high_rms_threshold, high_rms_bin_hours, initial_smooth_enabled, auto_detrend_enabled,
                 auto_detrend_method, auto_detrend_ratio, auto_detrend_period, prepare_algorithm, cache_dir,

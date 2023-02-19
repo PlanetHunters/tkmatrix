@@ -36,7 +36,7 @@ class MATRIX:
     DETREND_BIWEIGHT = "biweight"
     DETREND_GP = "gp"
 
-    def __init__(self, target, sectors, dir, preserve=False, star_info=None, file=None,
+    def __init__(self, target, sectors, author, dir, preserve=False, star_info=None, file=None,
                  exposure_time=None, initial_mask=None, initial_transit_mask=None,
                  eleanor_corr_flux='pca_flux', outliers_sigma=None, high_rms_enabled=True, high_rms_threshold=2.5,
                  high_rms_bin_hours=4, smooth_enabled=False,
@@ -53,6 +53,7 @@ class MATRIX:
         self.id = target
         self.dir = dir
         self.sectors = sectors
+        self.author = author
         self.star_info = star_info
         self.exposure_time = exposure_time
         self.preserve = preserve
@@ -81,7 +82,7 @@ class MATRIX:
         self.cores = cores
 
     def retrieve_object_data(self, inject_dir=None):
-        self.object_info = self.lcbuilder.build_object_info(self.id, None, self.sectors, self.file, self.exposure_time,
+        self.object_info = self.lcbuilder.build_object_info(self.id, self.author, self.sectors, self.file, self.exposure_time,
                                                        None, None,
                                                        self.star_info, None,
                                                        self.eleanor_corr_flux, self.outliers_sigma,
