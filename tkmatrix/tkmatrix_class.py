@@ -100,6 +100,8 @@ class MATRIX:
         if self.star_info is None:
             self.star_info = self.lc_build.star_info
         self.ab = self.star_info.ld_coefficients
+        if self.ab is None:
+            raise ValueError("Limb Darkening parameters were not found. Please provide them in the STAR properties.")
         self.mass = self.star_info.mass
         self.massmin = self.star_info.mass_min
         self.massmax = self.star_info.mass_max
