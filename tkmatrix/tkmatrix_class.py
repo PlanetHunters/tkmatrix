@@ -11,6 +11,7 @@ from lcbuilder.HarmonicSelector import HarmonicSelector
 from lcbuilder.helper import LcbuilderHelper
 from lcbuilder.lcbuilder_class import LcBuilder
 import wotan
+from lcbuilder.star.HabitabilityCalculator import HabitabilityCalculator
 from matplotlib.ticker import FormatStrFormatter
 from foldedleastsquares import transitleastsquares
 from foldedleastsquares import transit_mask, cleaned_array
@@ -239,6 +240,15 @@ class MATRIX:
         assert max_period >= min_period
         assert max_radius >= min_radius
         inject_dir = inject_dir if inject_dir is not None else self.retrieve_object_data()
+        habitability_calculator = HabitabilityCalculator()
+        semimajor_axis = HabitabilityCalculator().calculate_semi_major_axis(min_period, self.mstar.value)
+        rstar_au = self.rstar.to(u.au).value
+        if rstar_au / semimajor_axis >= 1:
+            period_for_rstar = habitability_calculator.au_to_period(self.mstar.value, rstar_au)
+            raise ValueError(
+                "Your minimum period is in a shorter orbit than the star radius. The minimum period for this star should be > " + str(
+                    round(period_for_rstar, 2)) + ' days')
+
         flux0 = self.lc_build.lc.flux.value
         time = self.lc_build.lc.time.value
         flux_err = self.lc_build.lc.flux_err.value
