@@ -45,8 +45,12 @@ def get_cpus():
 
 def get_star_info(properties, id):
     input_star_info = None
-    if properties["STAR"] is not None and properties["STAR"][id] is not None:
-        star_properties = properties["STAR"][id]
+    if properties["STAR"] is not None:
+        if id in properties["STAR"] and properties["STAR"][id] is not None: #TODO to support old STAR -> TIC XXXX -> properties parameters
+            print("Setting star parameters under STAR -> TIX XXXX is deprecated. Please nest all the properties directly under the 'STAR' key.")
+            star_properties = properties["STAR"][id]
+        else:
+            star_properties = properties['STAR']
         input_star_info = StarInfo(id,
                             tuple(star_properties["LD_COEFFICIENTS"]) if "LD_COEFFICIENTS" in star_properties else None,
                              star_properties["TEFF"] if "TEFF" in star_properties else None,
