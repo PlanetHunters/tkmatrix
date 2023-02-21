@@ -31,7 +31,7 @@ joblib==1.2.0
 k2plr==0.2.9
 keyring==23.13.1
 kiwisolver==1.4.4
-lcbuilder==0.10.6
+lcbuilder==0.10.7
 lightkurve==2.2.0
 llvmlite==0.39.1
 MarkupSafe==2.1.2
@@ -70,7 +70,7 @@ soupsieve==2.4
 statsmodels==0.12.2
 tess-point==0.6.1
 threadpoolctl==3.1.0
-tkmatrix==0.5.1
+tkmatrix==0.5.2
 tomli==2.0.1
 torch==1.9.0
 tornado==6.2
