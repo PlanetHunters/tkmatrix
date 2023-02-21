@@ -64,7 +64,7 @@ class InjectModel:
             ld_1='quad', ld_2=None,
             shape_1='sphere', shape_2='sphere',
             spots_1=None, spots_2=None,
-            exact_grav=False, verbose=1)
+            exact_grav=False, verbose=0)
         if model[0] > 0:
             flux_t = np.array(inject_model.flux) + model - 1.
             result_flux = flux_t
