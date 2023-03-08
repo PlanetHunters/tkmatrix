@@ -167,7 +167,7 @@ class MATRIX:
         logging.info("Setup injection directory")
 
     def inject_rv(self, inject_dir, rv_file, phases, min_period, max_period, steps_period, min_mass, max_mass,
-                  steps_mass, period_grid_geom="lin", mass_grid_geom="lin"):
+                  steps_mass, period_grid=None, mass_grid=None, period_grid_geom="lin", mass_grid_geom="lin"):
         """
         Creates the injection of all the synthetic radial velocities planet scenarios
 
@@ -180,23 +180,41 @@ class MATRIX:
         :param min_mass: minimum radius for the grid
         :param max_mass: maximum radius for the grid
         :param steps_mass: number of masses to be injected
+        :param period_grid: the period grid if given.
+        :param mass_grid: the mass grid if given.
         :param period_grid_geom: [lin|log]
         :param mass_grid_geom: [lin|log]
-        :return: the directory where injected files are stored
+        :return: the directory where injected files are stored and the period and mass grids
         """
         assert phases is not None and isinstance(phases, int) and phases > 0
-        assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
-        assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
-        assert steps_period is not None and isinstance(steps_period, (int)) and steps_period > 0
-        assert min_mass is not None and isinstance(min_mass, (int, float)) and min_mass > 0
-        assert max_mass is not None and isinstance(max_mass, (int, float)) and max_mass > 0
-        assert steps_mass is not None and isinstance(steps_mass, (int)) and steps_mass > 0
-        assert max_period >= min_period
-        assert max_mass >= min_mass
-        period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
-            else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
-        radius_grid = np.linspace(min_mass, max_mass, steps_mass) if mass_grid_geom == "lin" \
-            else np.logspace(np.log10(min_mass), np.log10(max_mass), steps_period)
+        if period_grid is not None:
+            min_period = np.nanmin(period_grid)
+        else:
+            assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
+            assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
+            assert steps_period is not None and isinstance(steps_period, (int)) and steps_period > 0
+            assert max_period >= min_period
+            period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
+                else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
+        if mass_grid is None:
+            assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
+            assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
+            assert steps_period is not None and isinstance(steps_period, (int)) and steps_period > 0
+            assert min_mass is not None and isinstance(min_mass, (int, float)) and min_mass > 0
+            assert max_mass is not None and isinstance(max_mass, (int, float)) and max_mass > 0
+            assert steps_mass is not None and isinstance(steps_mass, (int)) and steps_mass > 0
+            assert max_mass >= min_mass
+            mass_grid = np.linspace(min_mass, max_mass, steps_mass) if mass_grid_geom == "lin" \
+                else np.logspace(np.log10(min_mass), np.log10(max_mass), steps_period)
+        inject_dir = inject_dir if inject_dir is not None else self.retrieve_object_data()
+        habitability_calculator = HabitabilityCalculator()
+        semimajor_axis = HabitabilityCalculator().calculate_semi_major_axis(min_period, self.mstar.value)
+        rstar_au = self.rstar.to(u.au).value
+        if rstar_au / semimajor_axis >= 1:
+            period_for_rstar = habitability_calculator.au_to_period(self.mstar.value, rstar_au)
+            raise ValueError(
+                "Your minimum period is in a shorter orbit than the star radius. The minimum period for this star should be > " + str(
+                    round(period_for_rstar, 2)) + ' days')
         inject_models = []
         rv_df = pd.read_csv(rv_file)
         rv_df = rv_df.sort_values(by=['bjd'], ascending=True)
@@ -205,16 +223,17 @@ class MATRIX:
         rv_err = rv_df['rv_err']
         for period in period_grid:
             for t0 in np.linspace(time[0], time[0] + period, phases + 2)[1:-1]:
-                for mplanet in radius_grid:
+                for mplanet in mass_grid:
                     mplanet = np.around(mplanet, decimals=2) * u.M_earth
                     inject_models.append(InjectRvModel(inject_dir, time, rv, rv_err, self.rstar, self.mstar, t0,
                                                        period, mplanet))
         with Pool(processes=self.cores) as pool:
             pool.map(InjectRvModel.make_model, inject_models)
-        return inject_dir
+        return inject_dir, period_grid, mass_grid
 
-    def inject(self, phases, min_period, max_period, steps_period, min_radius, max_radius, steps_radius,
-               period_grid_geom="lin", radius_grid_geom="lin", inject_dir=None):
+    def inject(self, phases, min_period, max_period, steps_period, min_radius, max_radius,
+               steps_radius, period_grid=None, radius_grid=None, period_grid_geom="lin",
+               radius_grid_geom="lin", inject_dir=None):
         """
         Creates the injection of all the synthetic transiting planet scenarios
 
@@ -225,20 +244,30 @@ class MATRIX:
         :param min_radius: minimum radius for the grid
         :param max_radius: maximum radius for the grid
         :param steps_radius: number of radii to be injected
+        :param period_grid: the period grid if set
+        :param radius_grid: the radius grid if set
         :param period_grid_geom: [lin|log]
         :param radius_grid_geom: [lin|log]
         :param inject_dir: directory where injected files are stored
-        :return: the directory where injected files are stored
+        :return: the directory where injected files are stored and the period and radius grids
         """
         assert phases is not None and isinstance(phases, int) and phases > 0
-        assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
-        assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
-        assert steps_period is not None and isinstance(steps_period, (int)) and steps_period > 0
-        assert min_radius is not None and isinstance(min_radius, (int, float)) and min_radius > 0
-        assert max_radius is not None and isinstance(max_radius, (int, float)) and max_radius > 0
-        assert steps_radius is not None and isinstance(steps_radius, (int)) and steps_radius > 0
-        assert max_period >= min_period
-        assert max_radius >= min_radius
+        if period_grid is not None:
+            min_period = np.nanmin(period_grid)
+        else:
+            assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
+            assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
+            assert steps_period is not None and isinstance(steps_period, (int)) and steps_period > 0
+            assert max_period >= min_period
+            period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
+                else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
+        if radius_grid is None:
+            assert min_radius is not None and isinstance(min_radius, (int, float)) and min_radius > 0
+            assert max_radius is not None and isinstance(max_radius, (int, float)) and max_radius > 0
+            assert steps_radius is not None and isinstance(steps_radius, (int)) and steps_radius > 0
+            assert max_radius >= min_radius
+            radius_grid = np.linspace(min_radius, max_radius, steps_radius) if radius_grid_geom == "lin" \
+                else np.logspace(np.log10(min_radius), np.log10(max_radius), steps_period)
         inject_dir = inject_dir if inject_dir is not None else self.retrieve_object_data()
         habitability_calculator = HabitabilityCalculator()
         semimajor_axis = HabitabilityCalculator().calculate_semi_major_axis(min_period, self.mstar.value)
@@ -248,14 +277,9 @@ class MATRIX:
             raise ValueError(
                 "Your minimum period is in a shorter orbit than the star radius. The minimum period for this star should be > " + str(
                     round(period_for_rstar, 2)) + ' days')
-
         flux0 = self.lc_build.lc.flux.value
         time = self.lc_build.lc.time.value
         flux_err = self.lc_build.lc.flux_err.value
-        period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
-            else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
-        radius_grid = np.linspace(min_radius, max_radius, steps_radius) if radius_grid_geom == "lin" \
-            else np.logspace(np.log10(min_radius), np.log10(max_radius), steps_period)
         inject_models = []
         for period in period_grid:
             for t0 in np.linspace(time[0], time[0] + period, phases + 2)[1:-1]:
@@ -265,7 +289,7 @@ class MATRIX:
                                                      period, rplanet, self.exposure_time, self.ab))
         with Pool(processes=self.cores) as pool:
             pool.map(InjectModel.make_model, inject_models)
-        return inject_dir
+        return inject_dir, period_grid, radius_grid
 
     def recovery_rv_periods(self, filename, max_period_search, rv_masks=None, oversampling=1,
                             cores=os.cpu_count() - 1):
@@ -323,7 +347,7 @@ class MATRIX:
         reports_df = pd.DataFrame(columns=['period', 'mass', 'epoch', 'period_found', 'epoch_found', 'mass_found',
                                            'found', 'snr', 'sde', 'run'])
         for file in sorted(os.listdir(inject_dir)):
-            file_name_matches = re.search("RV_P([0-9]+\\.[0-9]+)+_M([0-9]+\\.[0-9]+)_([0-9]+\\.[0-9]+)\\.csv", file)
+            file_name_matches = re.search("RV_P([0-9]+\\.*[0-9]*)+_M([0-9]+\\.*[0-9]*)_([0-9]+\\.*[0-9]*)\\.csv", file)
             if file_name_matches is not None:
                 try:
                     period = float(file_name_matches[1])
@@ -387,7 +411,7 @@ class MATRIX:
         reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'duration_found', 'period_found', 'epoch_found',
                                            'found', 'snr', 'sde', 'run'])
         for file in sorted(os.listdir(inject_dir)):
-            file_name_matches = re.search("P([0-9]+\\.[0-9]+)+_R([0-9]+\\.[0-9]+)_([0-9]+\\.[0-9]+)\\.csv", file)
+            file_name_matches = re.search("P([0-9]+\\.*[0-9]*)+_R([0-9]+\\.*[0-9]*)_([0-9]+\\.*[0-9]*)\\.csv", file)
             if file_name_matches is not None:
                 try:
                     period = float(file_name_matches[1])
@@ -443,13 +467,15 @@ class MATRIX:
                     os.remove(inject_dir + file)
 
     @staticmethod
-    def plot_results(object_id, inject_dir, binning=1, xticks=None, yticks=None, period_grid_geom="lin",
-                     radius_grid_geom="lin", is_rv=False):
+    def plot_results(object_id, inject_dir, period_grid=None, radius_grid=None, binning=1, xticks=None, yticks=None,
+                     period_grid_geom="lin", radius_grid_geom="lin", is_rv=False):
         """
         Generates a heat map with the found/not found results for the period/radius grids
 
         :param object_id: the id of the target star
         :param inject_dir: the inject directory where the result files are stored
+        :param period_grid: the periods grid array
+        :param radius_grid: the radius or mass grid array
         :param binning: the binning to be applied to the grids
         :param xticks: the fixed ticks to be used for the period grid
         :param yticks: the fixed ticks to be used for the radius grid
@@ -469,25 +495,27 @@ class MATRIX:
         phases = len(df[df["period"] == df["period"].min()][df[column] == df[column].min()])
         phases_str = "phase" if phases == 1 else "phases"
         bin_nums = int(np.ceil(len(df["period"].unique()) / binning))
-        if period_grid_geom == 'lin':
-            step_period = (max_period - min_period) / (len(df["period"].unique()) - 1)
-            step_period = step_period * binning
-            if step_period <= 0:
-                step_period = 0.1
-            period_grid = np.linspace(min_period, max_period, bin_nums)\
-                if max_period - min_period > 0 else np.full((1), min_period)
-        else:
-            period_grid = np.logspace(np.log10(min_period), np.log10(max_period), bin_nums)
-        bin_nums = int(np.ceil(len(df[column].unique()) / binning))
-        if radius_grid_geom == 'lin':
-            step_radius = (max_rad - min_rad) / (len(df[column].unique()) - 1)
-            step_radius = step_radius * binning
-            if step_radius <= 0:
-                step_radius = 0.1
-            radius_grid = np.round(np.linspace(min_rad, max_rad, bin_nums), 2)\
-                if max_rad - min_rad > 0 else np.full((1), min_rad)
-        else:
-            radius_grid = np.round(np.logspace(np.log10(min_rad), np.log10(max_rad), 2), bin_nums)
+        if period_grid is None:
+            if period_grid_geom == 'lin':
+                step_period = (max_period - min_period) / (len(df["period"].unique()) - 1)
+                step_period = step_period * binning
+                if step_period <= 0:
+                    step_period = 0.1
+                period_grid = np.linspace(min_period, max_period, bin_nums)\
+                    if max_period - min_period > 0 else np.full((1), min_period)
+            else:
+                period_grid = np.logspace(np.log10(min_period), np.log10(max_period), bin_nums)
+        if radius_grid is None:
+            bin_nums = int(np.ceil(len(df[column].unique()) / binning))
+            if radius_grid_geom == 'lin':
+                step_radius = (max_rad - min_rad) / (len(df[column].unique()) - 1)
+                step_radius = step_radius * binning
+                if step_radius <= 0:
+                    step_radius = 0.1
+                radius_grid = np.round(np.linspace(min_rad, max_rad, bin_nums), 2)\
+                    if max_rad - min_rad > 0 else np.full((1), min_rad)
+            else:
+                radius_grid = np.round(np.logspace(np.log10(min_rad), np.log10(max_rad), 2), bin_nums)
         f = len(period_grid) / len(radius_grid)
         bins = [period_grid, radius_grid]
         h1, x, y = np.histogram2d(df['period'][df['found'] == 1], df[column][df['found'] == 1], bins=bins)
@@ -499,7 +527,7 @@ class MATRIX:
         plt.colorbar(im, label='Recovery rate (%)')
         plt.xlabel('Injected period (days)')
         plt.ylabel(r'Injected ' + 'radius' if not is_rv else 'mass' + ' (' + column_units + '$_\oplus$)')
-        ax.set_title(object_id + " - P/R recovery (" + str(phases) + " " + phases_str + ")")
+        ax.set_title(object_id + " - I&R (" + str(phases) + " " + phases_str + ")")
         if xticks is not None:
             plt.xticks(xticks)
         else:

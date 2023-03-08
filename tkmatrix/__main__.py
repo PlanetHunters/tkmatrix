@@ -133,26 +133,32 @@ if __name__ == '__main__':
                                             rv['OVERSAMPLING'] if 'OVERSAMPLING' in rv else 1,
                                             matrix_user_properties["CPUS"])
         if rv['PHASES'] is not None:
-            ir.inject_rv(inject_dir, rv['FILE'], rv["PHASES"], rv["MIN_PERIOD"],
-                         rv["MAX_PERIOD"], rv["STEPS_PERIOD"],
-                         rv["MIN_MASS"], rv["MAX_MASS"], rv["STEPS_MASS"],
-                         rv["PERIOD_GRID_GEOM"],
-                         rv["MASS_GRID_GEOM"])
+            inject_dir, period_grid, mass_grid = ir.inject_rv(inject_dir, rv['FILE'], rv["PHASES"], rv['MIN_PERIOD'],
+                         rv["MAX_PERIOD"], rv["STEPS_PERIOD"], rv["MAX_MASS"], rv["STEPS_MASS"],
+                         period_grid=rv['PERIOD_GRID'] if 'PERIOD_GRID' in rv else None,
+                         mass_grid=rv['MASS_GRID'] if 'MASS_GRID' in rv else None,
+                         period_grid_geom=rv["PERIOD_GRID_GEOM"],
+                         mass_grid_geom=rv["MASS_GRID_GEOM"])
             ir.recovery_rv(inject_dir, rv['INITIAL_MASK'] if 'INITIAL_MASK' in rv else None,
                            rv['SNR_THRESHOLD'], rv['RUN_LIMIT'],
                            rv['MAX_PERIOD_SEARCH'], rv['OVERSAMPLING'] if 'OVERSAMPLING' in rv else 1)
-            ir.plot_results(target, inject_dir, period_grid_geom=rv["PERIOD_GRID_GEOM"],
+            ir.plot_results(target, inject_dir, period_grid, mass_grid, period_grid_geom=rv["PERIOD_GRID_GEOM"],
                             radius_grid_geom=rv["MASS_GRID_GEOM"], is_rv=True)
-    inject_dir = ir.inject(matrix_user_properties["PHASES"], matrix_user_properties["MIN_PERIOD"],
-                           matrix_user_properties["MAX_PERIOD"], matrix_user_properties["STEPS_PERIOD"],
+    inject_dir, period_grid, radius_grid = ir.inject(matrix_user_properties["PHASES"],
+                           matrix_user_properties["MIN_PERIOD"], matrix_user_properties["MAX_PERIOD"],
+                           matrix_user_properties["STEPS_PERIOD"],
                            matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
-                           matrix_user_properties["STEPS_RADIUS"], matrix_user_properties["PERIOD_GRID_GEOM"],
-                           matrix_user_properties["RADIUS_GRID_GEOM"], inject_dir=inject_dir)
+                           matrix_user_properties["STEPS_RADIUS"],
+                           period_grid=matrix_user_properties['PERIOD_GRID'],
+                           radius_grid=matrix_user_properties['RADIUS_GRID'],
+                           period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
+                           radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"],
+                           inject_dir=inject_dir)
     ir.recovery(inject_dir, matrix_user_properties["SNR_THRESHOLD"],
                 matrix_user_properties["DETREND_METHOD"],
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
                 matrix_user_properties["RUN_LIMIT"],
                 custom_search, matrix_user_properties["MAX_PERIOD_SEARCH"], matrix_user_properties["OVERSAMPLING"])
-    ir.plot_results(target, inject_dir, period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
+    ir.plot_results(target, inject_dir, period_grid, radius_grid, period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
                     radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"])
     print("Execution time: " + str(datetime.datetime.now() - start_time))
