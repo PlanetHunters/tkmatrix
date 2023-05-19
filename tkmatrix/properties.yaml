@@ -6,33 +6,110 @@ FILE:
 SECTORS:
 # The author of the light curve data product [SPOC, Kepler, K2, TESS-SPOC, ELEANOR]
 AUTHOR:
+# The period grid as an array: [1, 2, 5].
 PERIOD_GRID:
+# If PERIOD_GRID is not set, the minimum period to be used to generate the grid
 MIN_PERIOD:
+# If PERIOD_GRID is not set, the maximum period to be used to generate the grid
 MAX_PERIOD:
+# If PERIOD_GRID is not set, the number of items to be contained in the period grid
 STEPS_PERIOD:
+# If PERIOD_GRID is not set, the shape of the period grid. It might be linear or logarithmic [lin|log]. Defaults to 'lin'.
 PERIOD_GRID_GEOM: 'lin'
+# The radius grid as an array: [1, 2, 5].
 RADIUS_GRID:
+# If RADIUS_GRID is not set, the minimum radius to be used to generate the grid
 MIN_RADIUS:
+# If RADIUS_GRID is not set, the maximum radius to be used to generate the grid
 MAX_RADIUS:
+# If RADIUS_GRID is not set, the number of items to be contained in the radius grid
 STEPS_RADIUS:
+# If RADIUS_GRID is not set, the shape of the radius grid. It might be linear or logarithmic [lin|log].
+# Defaults to 'lin'.
 RADIUS_GRID_GEOM: 'lin'
+# Maximum period for the TLS search done for the recovery. This must be always larger than the maximum period of
+# your grid.
 MAX_PERIOD_SEARCH: 25
+# The exposure time of the curve to be retrieved from Lightkurve [60|120|600|1800|fast|short|long]
 EXPOSURE_TIME:
+# The number of phases (epochs) to be used for each period & radius in your scenarios. Take into account that
+# increasing this value will increase the computational cost significantly (every scenario will be run `PHASES` times).
 PHASES:
+# The detrend method to be used before searching with TLS
 DETREND_METHOD: "biweight"
+# The detrend window size. If you don't want any detrend to be applied you can set a value higher than the timespan of
+# your curve.
 DETREND_WS: 0
+# Number of CPU processes to be used
 CPUS:
+# Fit method to be used. [tls|bls|grazing]
 FIT_METHOD: 'tls'
-RUN_LIMIT: 5
+# The number of TLS search trials to be run for each period & radius & epoch before considering as not recovered.
+RUN_LIMIT: 2
+# The SNR limit for a TLS found signal to be considered as not recovered.
 SNR_THRESHOLD: 5
+# The density of the period grid for the TLS search. Increasing this will enhance the TLS accuracy sometimes but it
+# adds a high increase of computational cost.
 OVERSAMPLING: 1
+# An array of time tuples to be masked in your curve. E.g: [[1401.25, 1401.60], [1415.2, 1416.0]]
 INITIAL_MASK:
+# Whether the application of a Savitzky-Golay filter will be used before running the TLS search.
 INITIAL_SMOOTH_ENABLED: False
 # Mask known transiting signals to make the analysis cleaner
 INITIAL_TRANSIT_MASK:
 #  - P: 2.55
 #    D: 91
 #    T0: 1455.32
+# Fixed period for running an initial detrend of a known periodicity in the curve (like fast-rotations or pulsations).
+AUTO_DETREND_PERIOD:
+# The multiplier applied to the AUTO_DETREND found period to be used as window size for an initial detrend.
+AUTO_DETREND_RATIO: 0.25
+# The AUTO_DETREND detrending method [cosine|biweight]
+AUTO_DETREND_METHOD: 'cosine'
+# Flag to enable AUTO_DETREND
+AUTO_DETREND_ENABLED: False
+# Flag to enable the sinusoidal oscillations reduction algorithm
+SIMPLE_OSCILLATIONS_REDUCTION: False
+# SNR limit to stop the sinusoidal oscillations reduction algorithm
+OSCILLATIONS_MIN_SNR: 4
+# Amplitude relationship vs flux standard deviation to stop the sinusoidal oscillations reduction algorithm
+OSCILLATIONS_AMPLITUDE_THRESHOLD: 0.001
+# Window size width in terms of percent for the sinusoidal oscillations reduction algorithm
+OSCILLATIONS_WS_PERCENT: 60
+# Minimum period to be used to compute the oscillations periodogram
+OSCILLATIONS_MIN_PERIOD: 0.0006875
+# Maximum period to be used to compute the oscillations periodogram. If set to less than OSCILLATIONS_MIN_PERIOD, 1/3
+# of the transits min period will be used.
+OSCILLATIONS_MAX_PERIOD: 0.25
+# Whether high RMS areas should be masked. Enabling it is highly discouraged as big planets might get masked easily.
+INITIAL_HIGH_RMS_MASK: False
+# Initial high rms masking binning hours.
+INITIAL_HIGH_RMS_BIN_HOURS: 4
+# Initial high rms masking RMS threshold.
+INITIAL_HIGH_RMS_THRESHOLD: 1.5
+# Sigma to be used for clipping upper ouliers.
+OUTLIERS_SIGMA: 3
+# This is deprecated.
+ELEANOR_CORRECTED_FLUX: 'pca_flux'
+# Custom algorithm for curve preparation. Example: https://github.com/PlanetHunters/SHERLOCK/blob/master/examples/custom_algorithms/ButterworthCurvePreparer.py
+PREPARE_ALGORITHM:
+# Custom search algorithm. More documentation is needed.
+CUSTOM_SEARCH_ALGORITHM:
+# Default cache dir for Lightkurve. Defaults to official one.
+CACHE_DIR:
+# The star parameters. This is important in case the official catalogues are incomplete.
+STAR:
+#  TIC 273369281:
+#    MASS: 1.20
+#    MASS_LOWER_ERROR: 0.10
+#    MASS_UPPER_ERROR: 0.30
+#    RADIUS: 1.15
+#    RADIUS_LOWER_ERROR: 0.05
+#    RADIUS_UPPER_ERROR: 0.25
+#    TEFF: 4000
+#    LUM: 1.25
+#    LOGG: 0.15
+#    LD_COEFFICIENTS: [0.25, 0.64]
 # If set, a radial velocities i&r will be done
 RV:
   OVERSAMPLING: 1
@@ -54,40 +131,3 @@ RV:
   INITIAL_MASK:
   #  - P: 2.55
   #    M: 1.44
-AUTO_DETREND_PERIOD:
-AUTO_DETREND_RATIO: 0.25
-AUTO_DETREND_METHOD: 'cosine'
-AUTO_DETREND_ENABLED: False
-# Flag to enable the algorithm
-SIMPLE_OSCILLATIONS_REDUCTION: False
-# SNR limit to stop the algorithm
-OSCILLATIONS_MIN_SNR: 4
-# Amplitude relationship vs flux standard deviation to stop the algorithm
-OSCILLATIONS_AMPLITUDE_THRESHOLD: 0.001
-# Window size width in terms of percent
-OSCILLATIONS_WS_PERCENT: 60
-# Minimum period to be used to compute the oscillations periodogram
-OSCILLATIONS_MIN_PERIOD: 0.0006875
-# Maximum period to be used to compute the oscillations periodogram. If set to less than OSCILLATIONS_MIN_PERIOD, 1/3
-# of the transits min period will be used.
-OSCILLATIONS_MAX_PERIOD: 0.25
-INITIAL_HIGH_RMS_BIN_HOURS: 4
-INITIAL_HIGH_RMS_THRESHOLD: 1.5
-INITIAL_HIGH_RMS_MASK: False
-OUTLIERS_SIGMA: 3
-ELEANOR_CORRECTED_FLUX: 'pca_flux'
-PREPARE_ALGORITHM:
-CUSTOM_SEARCH_ALGORITHM:
-CACHE_DIR:
-STAR:
-#  TIC 273369281:
-#    MASS: 1.20
-#    MASS_LOWER_ERROR: 0.10
-#    MASS_UPPER_ERROR: 0.30
-#    RADIUS: 1.15
-#    RADIUS_LOWER_ERROR: 0.05
-#    RADIUS_UPPER_ERROR: 0.25
-#    TEFF: 4000
-#    LUM: 1.25
-#    #LOGG: 0.15
-#    LD_COEFFICIENTS: [0.25, 0.64]
