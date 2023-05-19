@@ -22,13 +22,13 @@ if ! [[ -z ${tests_results} ]]; then
   rm -r tkmatrix-reqs
   rm -R *egg-info
   set -e
-  python3.8 -m venv tkmatrix-reqs
+  python3.9 -m venv tkmatrix-reqs
   source tkmatrix-reqs/bin/activate
-  python3.8 -m pip install pip -U
-  python3.8 -m pip install numpy==1.22.4
+  python3.9 -m pip install pip -U
+  python3.9 -m pip install numpy==1.23.5
   sed -i '5s/.*/version = "'${git_tag}'"/' setup.py
-  python3.8 -m pip install -e .
-  python3.8 -m pip list --format=freeze > requirements.txt
+  python3.9 -m pip install -e .
+  python3.9 -m pip list --format=freeze > requirements.txt
   deactivate
   git add requirements.txt
   git add setup.py
