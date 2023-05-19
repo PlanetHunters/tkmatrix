@@ -5,6 +5,31 @@
 # MATRIX ToolKit
 ToolKit for Multi-phAse Transits Recovery from Injected eXoplanets
 
+MATRIX is an injection-recovery software prepared to create grids of scenarios with a set of periods, radii and epochs
+of synthetic transiting exoplanet signals in a provided light curve. The typical injection-recovery execution has
+consisted in the usage of 2 dimensional scenarios, where only one epoch (random or hardcoded) was used for each period
+and radius. Even though this is a fair approach when the computational power is very limited, this reduces the accuracy
+of the experiment as the recoverability might vary depending on the transit epoch and hence, the places where the
+transits would appear in the curve. E.g: A transit would be clearly recovered falling in a quite region of the curve
+but not easy to recover when it happened close to a flare or a curve gap. A multi-phase analysis can now be done with
+MATRIX easily by only setting a few parameters in a configuration file and running one line of code.
+
+Just execute the command below this text. Take into accont that the `user-properties.yaml` file needs to include 
+several mandatory options. Please refer to the example files under the 
+[example](https://github.com/PlanetHunters/tkmatrix/tree/master/examples/TOI-2257/matrix_properties.yaml) directory.
+
+`python3.8 -m tkmatrix --properties user-properties.yaml`
+
+For the complete set of properties available for use please look at the root 
+[properties.yaml](https://github.com/PlanetHunters/tkmatrix/tree/master/tkmatrix/properties.yaml)
+
+
+## By-products
+* a_tls_report.csv: A file containing a csv formatted output given the orbital period, the radius and the epoch besides the outputs with found status, SNR and SDE of the results.
+* a_tls_report.png: A file with an automatically generated plot from the csv report. You are free to build your own plot from the report if you feel like the one provided by MATRIX is not good enough for your purposes.
+* Injected curves (csv files): In case you want to study the injected curves generated for the recovery, you can set a flag to the tool so that it keeps the files after it finishes. If you don't provide that flag, the files will be removed at the end of the execution.
+
+
 ## Citation
 We are planning to write a scientific paper based on the usage of MATRIX. In the meantime, we encourage the users to cite the Software DOI in their research:
 ```
@@ -24,39 +49,5 @@ We are planning to write a scientific paper based on the usage of MATRIX. In the
 }
 ```
 
-## Main Developers
-[M. Dévora Pajares](https://github.com/martindevora)
-
-[F.J. Pozuelos](https://github.com/franpoz)
-
-
-## Additional contributors
-[L. Cerdeño Mota](https://github.com/LuisCerdenoMota) 
-
-## Installation
-Supported Python versions: 3.8, 3.9. Install with:
-
-```
-python3.8 -m pip install numpy==1.22.4
-python3.8 -m pip install -r requirements.txt
-```
-
-You can find the requirements.txt file [here](https://github.com/PlanetHunters/tkmatrix/blob/master/requirements.txt). 
-
-## Tests
-We use [tox](https://tox.readthedocs.io) to test MATRIX under all the supported Python versions. Usage:
-
-`tox`
-
-## Examples
-Under the [examples](https://github.com/PlanetHunters/tkmatrix/tree/master/examples) directory.
-
-## Execution
-Just execute the command below this text. Take into accont that the `user-properties.yaml` file needs to include several mandatory options. Please refer to the example file under the examples directory.
-
-`python3.8 -m tkmatrix --properties user-properties.yaml`
-
-## By-products
-* a_tls_report.csv: A file containing a csv formatted output given the orbital period, the radius and the epoch besides the outputs with found status, SNR and SDE of the results.
-* a_tls_report.png: A file with an automatically generated plot from the csv report. You are free to build your own plot from the report if you feel like the one provided by MATRIX is not good enough for your purposes.
-* Injected curves (csv files): In case you want to study the injected curves generated for the recovery, you can set a flag to the tool so that it keeps the files after it finishes. If you don't provide that flag, the files will be removed at the end of the execution.
+## Documentation
+For more information please visit [https://tkmatrix.readthedocs.io/](https://tkmatrix.readthedocs.io/). 
