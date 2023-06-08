@@ -46,6 +46,8 @@ CPUS:
 FIT_METHOD: 'tls'
 # The number of TLS search trials to be run for each period & radius & epoch before considering as not recovered.
 RUN_LIMIT: 2
+# Whether to use period & epoch to select a signal or only the period. [period-epoch|period]
+SIGNAL_SELECTION_MODE: 'period-epoch'
 # The SNR limit for a TLS found signal to be considered as not recovered.
 SNR_THRESHOLD: 5
 # The density of the period grid for the TLS search. Increasing this will enhance the TLS accuracy sometimes but it
