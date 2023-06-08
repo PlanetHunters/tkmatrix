@@ -97,7 +97,7 @@ class MATRIX:
                                                        self.oscillation_max_period)
         if inject_dir is None:
             inject_dir = self.build_inject_dir()
-        self.lc_build = self.lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
+        self.lc_build = self.lcbuilder.build(self.object_info, inject_dir, self.cache_dir, self.cores)
         if self.star_info is None:
             self.star_info = self.lc_build.star_info
         self.ab = self.star_info.ld_coefficients
@@ -137,7 +137,7 @@ class MATRIX:
                 self.object_info.oscillation_max_period < self.object_info.oscillation_min_period:
             logging.info("Stellar oscillation period has been set to empty. Defaulting to 1/3 the minimum search period")
             self.object_info.oscillation_max_period = self.MIN_SEARCH_PERIOD / 3
-        self.lc_build = self.lcbuilder.build(self.object_info, inject_dir, self.cache_dir)
+        self.lc_build = self.lcbuilder.build(self.object_info, inject_dir, self.cache_dir, self.cores)
 
     def build_inject_dir(self):
         inject_dir = self.dir + "/" + self.object_info.mission_id().replace(" ", "") + "_ir/"
@@ -385,7 +385,7 @@ class MATRIX:
 
     def recovery(self, inject_dir, snr_threshold=5, detrend_method=DETREND_BIWEIGHT, detrend_ws=0,
                  transit_template='tls', run_limit=5, custom_search_algorithm=None, max_period_search=25,
-                 oversampling=3):
+                 oversampling=3, signal_selection_mode='period-epoch'):
         """
         Given the injection dir, it will iterate over all the csvs matching light curves and try the recovery of their
         transit parameters (period and epoch).
@@ -436,7 +436,7 @@ class MATRIX:
                                           max_period_search, snr_threshold,
                                           transit_template, detrend_method, detrend_ws,
                                           self.lc_build.transits_min_count, run_limit, custom_search_algorithm,
-                                          oversampling)
+                                          oversampling, signal_selection_mode)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run, "duration_found": duration_found,
                                   "period_found": period_found, "epoch_found": epoch_found}
@@ -618,7 +618,7 @@ class MATRIX:
 
     def __search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                  period, min_period, max_period, min_snr, transit_template, detrend_method, ws, transits_min_count,
-                 run_limit, custom_search_algorithm, oversampling):
+                 run_limit, custom_search_algorithm, oversampling, signal_selection_mode):
         tls_period_grid, oversampling = LcbuilderHelper.calculate_period_grid(time, min_period, max_period,
                                                                               oversampling, self.star_info,
                                                                               transits_min_count)
@@ -629,11 +629,12 @@ class MATRIX:
         else:
             return self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                                      period, min_period, max_period, min_snr, self.cores, transit_template,
-                                     detrend_method, ws, transits_min_count, run_limit, tls_period_grid)
+                                     detrend_method, ws, transits_min_count, run_limit, tls_period_grid,
+                                     signal_selection_mode)
 
     def __tls_search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                      period, min_period, max_period, min_snr, cores, transit_template, detrend_method, ws,
-                     transits_min_count, run_limit, tls_period_grid):
+                     transits_min_count, run_limit, tls_period_grid, signal_selection_mode):
         snr = 1e12
         found_signal = False
         time, flux = cleaned_array(time, flux)
@@ -670,7 +671,13 @@ class MATRIX:
                 flux = flux[~intransit_result]
                 time, flux = cleaned_array(time, flux)
                 if results.transit_times is not None and len(results.transit_times) > 0:
-                    found_signal = HarmonicSelector.is_harmonic(results.transit_times[0], epoch, results.period, period)
+                    if signal_selection_mode == 'period-epoch':
+                        found_signal = HarmonicSelector.is_harmonic(results.transit_times[0], epoch, results.period, period)
+                    else:
+                        found_signal = HarmonicSelector.multiple_of(results.period, period) != 0
+                    # plt.plot(foldedleastsquares.fold(time, results.period, results.transit_times[0], flux))
+                    # plt.xlim([0.4, 0.6])
+                    # plt.show()
                     if found_signal:
                         break
             run = run + 1
