@@ -158,7 +158,8 @@ if __name__ == '__main__':
                 matrix_user_properties["DETREND_METHOD"],
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
                 matrix_user_properties["RUN_LIMIT"],
-                custom_search, matrix_user_properties["MAX_PERIOD_SEARCH"], matrix_user_properties["OVERSAMPLING"])
+                custom_search, matrix_user_properties["MAX_PERIOD_SEARCH"], matrix_user_properties["OVERSAMPLING"],
+                matrix_user_properties["SIGNAL_SELECTION_MODE"])
     ir.plot_results(target, inject_dir, period_grid, radius_grid, period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
                     radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"])
     print("Execution time: " + str(datetime.datetime.now() - start_time))
