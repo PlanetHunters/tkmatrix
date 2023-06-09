@@ -285,7 +285,7 @@ class MATRIX:
             for t0 in np.linspace(time[0], time[0] + period, phases + 2)[1:-1]:
                 for rplanet in radius_grid:
                     rplanet = np.around(rplanet, decimals=2) * u.R_earth
-                    inject_models.append(InjectModel(inject_dir, time, flux0, flux_err, self.rstar, self.mstar, t0,
+                    inject_models.append(InjectModel(inject_dir, time, np.array(flux0), np.array(flux_err), self.rstar, self.mstar, t0,
                                                      period, rplanet, self.exposure_time, self.ab))
         with Pool(processes=self.cores) as pool:
             pool.map(InjectModel.make_model, inject_models)
