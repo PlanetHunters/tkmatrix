@@ -440,7 +440,7 @@ class MATRIX:
                                           self.lc_build.transits_min_count, run_limit, custom_search_algorithm,
                                           oversampling, signal_selection_mode)
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch,
-                                  "found": founds[-1]), "snr": ','.join([str(i) for i in snrs]),
+                                  "found": founds[-1], "snr": ','.join([str(i) for i in snrs]),
                                   "sde": ','.join([str(i) for i in sdes]), "run": ','.join([str(i) for i in runs]),
                                   "duration_found": ','.join([str(i) for i in durations_found]),
                                   "period_found": ','.join([str(i) for i in periods_found]),
