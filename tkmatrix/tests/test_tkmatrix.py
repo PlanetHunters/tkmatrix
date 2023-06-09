@@ -35,7 +35,7 @@ class TestsMatrix(unittest.TestCase):
             self.assertEquals(".", matrix.dir)
             matrix.recovery(inject_dir, 5, detrend_ws=0, oversampling=0.1)
             matrix.plot_results(target, inject_dir)
-            self.assertEquals(8, len(os.listdir(inject_dir)))
+            self.assertEquals(9, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
