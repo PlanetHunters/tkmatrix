@@ -410,6 +410,8 @@ class MATRIX:
             transit_template = 'box'
         reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'duration_found', 'period_found', 'epoch_found',
                                            'found', 'snr', 'sde', 'run'])
+        run_reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'duration_found', 'period_found', 'epoch_found',
+                                           'found', 'snr', 'sde', 'run'])
         for file in sorted(os.listdir(inject_dir)):
             file_name_matches = re.search("P([0-9]+\\.*[0-9]*)+_R([0-9]+\\.*[0-9]*)_([0-9]+\\.*[0-9]*)\\.csv", file)
             if file_name_matches is not None:
@@ -420,32 +422,43 @@ class MATRIX:
                     df = pd.read_csv(inject_dir + file, float_precision='round_trip', sep=',',
                                      usecols=['#time', 'flux', 'flux_err'])
                     if len(df) == 0:
-                        found = True
-                        snr = 20
-                        sde = self.SDE_ROCHE
-                        run = 1
-                        duration_found = 20
-                        epoch_found = 0
-                        period_found = 0
+                        founds = [True]
+                        snrs = [20]
+                        sdes = [self.SDE_ROCHE]
+                        runs = [1]
+                        durations_found = [20]
+                        epochs_found = [0]
+                        periods_found = [0]
                     else:
                         self.retrieve_object_data_for_recovery(inject_dir + "/", inject_dir + file)
-                        found, snr, sde, run, duration_found, period_found, epoch_found = \
-                            self.__search(self.lc_build.lc.time.value, self.lc_build.lc.flux.value, self.radius, self.radiusmin,
-                                          self.radiusmax, self.mass, self.massmin,
+                        founds, snrs, sdes, runs, durations_found, periods_found, epochs_found = \
+                            self.__search(self.lc_build.lc.time.value, self.lc_build.lc.flux.value, self.radius,
+                                          self.radiusmin, self.radiusmax, self.mass, self.massmin,
                                           self.massmax, self.ab, epoch, period, self.MIN_SEARCH_PERIOD,
                                           max_period_search, snr_threshold,
                                           transit_template, detrend_method, detrend_ws,
                                           self.lc_build.transits_min_count, run_limit, custom_search_algorithm,
                                           oversampling, signal_selection_mode)
-                    new_report = {"period": period, "radius": r_planet, "epoch": epoch, "found": found, "snr": snr,
-                                  "sde": sde, "run": run, "duration_found": duration_found,
-                                  "period_found": period_found, "epoch_found": epoch_found}
+                    new_report = {"period": period, "radius": r_planet, "epoch": epoch,
+                                  "found": founds[-1]), "snr": ','.join([str(i) for i in snrs]),
+                                  "sde": ','.join([str(i) for i in sdes]), "run": ','.join([str(i) for i in runs]),
+                                  "duration_found": ','.join([str(i) for i in durations_found]),
+                                  "period_found": ','.join([str(i) for i in periods_found]),
+                                  "epoch_found": ','.join([str(i) for i in epochs_found])}
                     reports_df = reports_df.append(new_report, ignore_index=True)
+                    for i in np.arange(0, len(founds)):
+                        run_reports_df = run_reports_df.append(
+                            {"period": period, "radius": r_planet, "epoch": epoch, "found": founds[i], "snr": snrs[i],
+                                  "sde": sdes[i], "run": runs[i], "duration_found": durations_found[i],
+                                  "period_found": periods_found[i], "epoch_found": epochs_found[i]}, ignore_index=True)
                     print("P=" + str(period) + ", R=" + str(r_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
-                        found) +
-                          " WITH SNR " + str(snr) + " AND SDE " + str(sde))
+                        founds[-1]) +
+                          " WITH SNRs " + str(snrs) + " AND SDEs " + str(sdes))
                     reports_df = reports_df.sort_values(['period', 'radius', 'epoch'], ascending=[True, True, True])
+                    run_reports_df = run_reports_df.sort_values(['period', 'radius', 'epoch', 'run'],
+                                                            ascending=[True, True, True, True])
                     reports_df.to_csv(inject_dir + "a_tls_report.csv", index=False)
+                    run_reports_df.to_csv(inject_dir + "a_tls_report_per_run.csv", index=False)
                 except Exception as e:
                     traceback.print_exc()
                     print("File not valid: " + file)
@@ -646,6 +659,13 @@ class MATRIX:
             elif detrend_method == self.DETREND_GP:
                 flux = wotan.flatten(time, flux, method=self.DETREND_GP, kernel='matern', kernel_size=ws,
                                      return_trend=False, break_tolerance=0.5)
+        found_signals = []
+        snrs = []
+        sdes = []
+        runs = []
+        durations = []
+        periods = []
+        t0s = []
         while snr >= min_snr and not found_signal and (run_limit > 0 and run < run_limit):
             model = transitleastsquares(time, flux)
             # R_starx = rstar / u.R_sun
@@ -671,6 +691,7 @@ class MATRIX:
                 flux = flux[~intransit_result]
                 time, flux = cleaned_array(time, flux)
                 if results.transit_times is not None and len(results.transit_times) > 0:
+                    print(f"Selecting signal with mode {signal_selection_mode}")
                     if signal_selection_mode == 'period-epoch':
                         found_signal = HarmonicSelector.is_harmonic(results.transit_times[0], epoch, results.period, period)
                     else:
@@ -679,9 +700,23 @@ class MATRIX:
                     # plt.xlim([0.4, 0.6])
                     # plt.show()
                     if found_signal:
+                        found_signals = found_signals + [found_signal]
+                        snrs = snrs + [results.snr]
+                        sdes = sdes + [results.SDE]
+                        runs = runs + [run]
+                        durations = durations + [results.duration]
+                        periods = periods + [results.period]
+                        t0s = t0s + [results.T0]
                         break
+            found_signals = found_signals + [found_signal]
+            snrs = snrs + [results.snr]
+            sdes = sdes + [results.SDE]
+            runs = runs + [run]
+            durations = durations + [results.duration]
+            periods = periods + [results.period]
+            t0s = t0s + [results.T0]
             run = run + 1
-        return found_signal, results.snr, results.SDE, run, results.duration, results.period, results.T0
+        return found_signals, snrs, sdes, runs, durations, periods, t0s
 
     @staticmethod
     def num_of_zeros(n):
