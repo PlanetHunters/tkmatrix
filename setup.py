@@ -2,7 +2,7 @@ import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
-version = "0.6.5"
+version = "0.6.6"
 setuptools.setup(
     name="tkmatrix",
     version=version,
@@ -26,7 +26,7 @@ setuptools.setup(
                         "corner==2.1.0",
                         "cython==0.29.21",
                         "ellc==1.8.5",
-                        "lcbuilder==0.12.5",
+                        "lcbuilder==0.12.8",
                         "matplotlib==3.5.2",
                         "mock==4.0.3",
                         'numba>=0.53.0rc1',
