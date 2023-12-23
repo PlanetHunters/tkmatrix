@@ -24,7 +24,6 @@ setuptools.setup(
                         'beautifulsoup4==4.9.3',
                         'configparser==5.0.1',
                         "corner==2.1.0",
-                        "cython==0.29.21",
                         "ellc==1.8.5",
                         "lcbuilder==0.14.3",
                         "matplotlib==3.5.2",
@@ -33,7 +32,6 @@ setuptools.setup(
                         'pyparsing==2.4.7', # Matplotlib dependency
                         "seaborn==0.11.1",
                         'setuptools>=41.0.0',
-                        "scipy==1.8.0",
                         "sklearn==0.0",
                         'tqdm==4.56.0',
                         "wotan==1.9",
