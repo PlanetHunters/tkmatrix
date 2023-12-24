@@ -25,7 +25,7 @@ setuptools.setup(
                         'configparser==5.0.1',
                         "corner==2.1.0",
                         "ellc==1.8.5",
-                        "lcbuilder==0.14.3",
+                        "lcbuilder==0.14.4",
                         "matplotlib==3.5.2",
                         "mock==4.0.3",
                         'numba>=0.53.0rc1',
