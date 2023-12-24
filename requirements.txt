@@ -101,6 +101,7 @@ datasets==2.12.0
 datashader==0.15.2
 datashape==0.5.4
 dearwatson==0.8.3
+dearwatson==0.8.4
 dearwatson==0.8.1
 dearwatson==0.8.2
 debugpy==1.6.7
@@ -115,13 +116,16 @@ docstring-to-markdown==0.11
 docutils==0.18.1
 dynesty==1.0.1
 ellc==1.8.5
+ellc==1.8.8
 emcee==3.0.2
 entrypoints==0.4
 et-xmlfile==1.1.0
 everest-pipeline==2.0.12
 everest-pipeline==2.0.12
 executing==0.8.3
+exoml==0.0.18
 exoml==0.0.15
+exoml==0.0.17
 exoml==0.0.15
 extension-helpers==1.1.1
 extension-helpers==0.1
@@ -225,7 +229,9 @@ kiwisolver==1.4.4
 lazy_loader==0.2
 lazy-object-proxy==1.6.0
 lcbuilder==0.14.3
+lcbuilder==0.14.3
 lcbuilder==0.14.2
+lcbuilder==0.14.4
 libarchive-c==2.9
 libclang==16.0.6
 libclang==16.0.6
@@ -502,7 +508,7 @@ three-merge==0.1.1
 tifffile==2023.4.12
 timezonefinder==5.2.0
 tinycss2==1.2.1
-tkmatrix==0.7.1
+tkmatrix==0.7.2
 tldextract==3.2.0
 tokenizers==0.13.2
 toml==0.10.2
