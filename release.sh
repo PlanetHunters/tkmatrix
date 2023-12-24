@@ -7,11 +7,11 @@ rm -r .pytest_cache
 rm -r build
 rm -r tkmatrix-reqs
 rm -R *egg-info
+conda remove -n tkmatrix-reqs --all -y
 set -e
-
 git_tag=$1
 echo "GIT TAG IS " ${git_tag}
-tox -r -e py38,py39 > tests.log
+tox -r -e py310 > tests.log
 tests_results=$(cat tests.log | grep "congratulations")
 if ! [[ -z ${tests_results} ]]; then
   set +e
@@ -21,15 +21,16 @@ if ! [[ -z ${tests_results} ]]; then
   rm -r build
   rm -r tkmatrix-reqs
   rm -R *egg-info
+  conda remove -n tkmatrix-reqs --all -y
   set -e
-  python3.10 -m venv tkmatrix-reqs
-  source tkmatrix-reqs/bin/activate
-  python3.10 -m pip install pip -U
-  python3.10 -m pip install numpy==1.23.5
+  conda create -n tkmatrix-reqs python=3.10 anaconda -y
+  ~/anaconda3/bin/activate tkmatrix-reqs
+  python3 -m pip install pip -U
+  python3 -m pip install numpy==1.23.5
   sed -i '5s/.*/version = "'${git_tag}'"/' setup.py
-  python3.10 -m pip install -e .
-  python3.10 -m pip list --format=freeze > requirements.txt
-  deactivate
+  python3 -m pip install -e .
+  python3 -m pip list --format=freeze > requirements.txt
+  ~/anaconda3/bin/deactivate
   git add requirements.txt
   git add setup.py
   git commit -m "Preparing release ${git_tag}"
@@ -39,9 +40,10 @@ else
   echo "TESTS FAILED. See tests.log"
 fi
 set +e
-rm -R sherlockpipe-reqs
+rm -R tkmatrix-reqs
 rm dist* -r
 rm -r .tox
 rm -r .pytest_cache
 rm -r build
 rm -R *egg-info
+conda remove -n tkmatrix-reqs --all -y
