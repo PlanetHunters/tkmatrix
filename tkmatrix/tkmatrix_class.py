@@ -662,7 +662,7 @@ class MATRIX:
                     .search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                             ab, epoch, period, min_period, max_period, min_snr, self.cores,
                             transit_template, detrend_method, ws, transits_min_count,
-                            signal_selection_mode, run_limit)
+                            signal_selection_mode, run_limit, oversampling)
         else:
             return self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                                      period, min_period, max_period, min_snr, self.cores, transit_template,

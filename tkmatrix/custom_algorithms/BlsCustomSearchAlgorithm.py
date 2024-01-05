@@ -20,7 +20,7 @@ class BlsCustomSearchAlgorithm(CustomSearchAlgorithm):
 
     def search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                ab, epoch, period, min_period, max_period, min_snr, cores, transit_template, detrend_method, ws,
-               transits_min_count, signal_selection_mode, run_limit):
+               transits_min_count, signal_selection_mode, run_limit, oversampling):
 
         snr = 1e12
         found_signal = False
@@ -37,7 +37,6 @@ class BlsCustomSearchAlgorithm(CustomSearchAlgorithm):
         periods = []
         t0s = []
         while snr >= min_snr and not found_signal and (run_limit > 0 and run < run_limit):
-            oversampling = 1
             star_info = StarInfo(mass=mass, radius=rstar)
             tls_period_grid, oversampling = LcbuilderHelper.calculate_period_grid(time, min_period, max_period,
                                                                                   oversampling, star_info,
@@ -45,13 +44,14 @@ class BlsCustomSearchAlgorithm(CustomSearchAlgorithm):
             lc = lightkurve.LightCurve(time=time, flux=flux)
             results = lc.to_periodogram(method='bls', period=tls_period_grid)
             max_power_index = np.argmax(results.power)
-            snr = results.snr[max_power_index].value / np.nanmedian(results.snr).value
             sde = results.power[max_power_index].value / np.nanmedian(results.power).value
             t0 = results.transit_time_at_max_power.value
             duration = results.duration_at_max_power.value
             found_period = results.period_at_max_power.value
+            intransit_result = transit_mask(time, found_period, 2 * duration, t0)
+            oot_flux = flux[~intransit_result]
+            snr = results.snr[max_power_index].value / np.nanstd(oot_flux)
             if snr >= min_snr:
-                intransit_result = transit_mask(time, found_period, 2 * duration, t0)
                 time = time[~intransit_result]
                 flux = flux[~intransit_result]
                 time, flux = cleaned_array(time, flux)

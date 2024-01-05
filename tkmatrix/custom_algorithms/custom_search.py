@@ -12,7 +12,7 @@ class CustomSearchAlgorithm(ABC):
     def search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                ab, epoch, period, min_period, max_period, min_snr, cores,
                transit_template, detrend_method, ws, transits_min_count,
-               signal_selection_mode, run_limit):
+               signal_selection_mode, run_limit, oversampling):
 
         """
         Searches for a signal with a given epoch and period in the signal given by time and flux.
@@ -38,5 +38,6 @@ class CustomSearchAlgorithm(ABC):
         :param transits_min_count: the minimum number of transits for a signal to be valid
         :param signal_selection_mode: the way for retrieving the signal
         :param run_limit: the number of runs to limit the search
+        :param oversampling: the density of the period grid
         """
         pass
