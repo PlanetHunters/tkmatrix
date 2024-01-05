@@ -115,6 +115,7 @@ if __name__ == '__main__':
     exptime = matrix_user_properties["EXPOSURE_TIME"]
     eleanor_corr_flux = matrix_user_properties["ELEANOR_CORRECTED_FLUX"]
     cache_dir = matrix_user_properties["CACHE_DIR"]
+    search_engine = matrix_user_properties["SEARCH_ENGINE"]
     if cache_dir is None:
         cache_dir = os.path.expanduser('~') + "/"
     ir = MATRIX(target, matrix_user_properties["SECTORS"], author, args.dir, args.preserve, star_info, file, exptime,
@@ -122,7 +123,8 @@ if __name__ == '__main__':
                 high_rms_threshold, high_rms_bin_hours, initial_smooth_enabled, auto_detrend_enabled,
                 auto_detrend_method, auto_detrend_ratio, auto_detrend_period, prepare_algorithm, cache_dir,
                 oscillation_reduction, oscillation_min_snr, oscillation_amplitude_threshold, oscillation_ws_percent,
-                oscillation_min_period, oscillation_max_period, matrix_user_properties["CPUS"])
+                oscillation_min_period, oscillation_max_period, matrix_user_properties["CPUS"],
+                search_engine=search_engine)
     if matrix_user_properties['PHASES'] is None and ((rv is None) or (rv is not None and rv['FILE'] is None)):
         print("You either need to define a photometry or a RV injection and recovery scenario.")
         exit(1)
@@ -159,7 +161,8 @@ if __name__ == '__main__':
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
                 matrix_user_properties["RUN_LIMIT"],
                 custom_search, matrix_user_properties["MAX_PERIOD_SEARCH"], matrix_user_properties["OVERSAMPLING"],
-                matrix_user_properties["SIGNAL_SELECTION_MODE"])
+                matrix_user_properties["SIGNAL_SELECTION_MODE"],
+                use_search_cache=matrix_user_properties["USE_SEARCH_CACHE"])
     ir.plot_results(target, inject_dir, period_grid, radius_grid, period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
                     radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"])
     print("Execution time: " + str(datetime.datetime.now() - start_time))

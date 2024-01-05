@@ -30,6 +30,8 @@ RADIUS_GRID_GEOM: 'lin'
 # Maximum period for the TLS search done for the recovery. This must be always larger than the maximum period of
 # your grid.
 MAX_PERIOD_SEARCH: 25
+# Choose search engine: cpu|gpu|gpu_approximate
+SEARCH_ENGINE: 'cpu'
 # The exposure time of the curve to be retrieved from Lightkurve [60|120|600|1800|fast|short|long]
 EXPOSURE_TIME:
 # The number of phases (epochs) to be used for each period & radius in your scenarios. Take into account that
@@ -99,6 +101,8 @@ PREPARE_ALGORITHM:
 CUSTOM_SEARCH_ALGORITHM:
 # Default cache dir for Lightkurve. Defaults to official one.
 CACHE_DIR:
+# Allows skipping higher radius searches for already found planets at a given period, saving much computational time
+USE_SEARCH_CACHE: False
 # The star parameters. This is important in case the official catalogues are incomplete.
 STAR:
 #  TIC 273369281:
