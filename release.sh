@@ -1,5 +1,6 @@
 #!/bin/bash
 
+source ~/anaconda3/etc/profile.d/conda.sh
 rm tests.log
 rm dist* -r
 rm -r .tox
@@ -23,14 +24,14 @@ if ! [[ -z ${tests_results} ]]; then
   rm -R *egg-info
   conda remove -n tkmatrix-reqs --all -y
   set -e
-  conda create -n tkmatrix-reqs python=3.10 anaconda -y
-  ~/anaconda3/bin/activate tkmatrix-reqs
+  conda create -n tkmatrix-reqs python=3.10 -y
+  conda activate tkmatrix-reqs
   python3 -m pip install pip -U
   python3 -m pip install numpy==1.23.5
   sed -i '5s/.*/version = "'${git_tag}'"/' setup.py
   python3 -m pip install -e .
   python3 -m pip list --format=freeze > requirements.txt
-  ~/anaconda3/bin/deactivate
+  conda deactivate
   git add requirements.txt
   git add setup.py
   git commit -m "Preparing release ${git_tag}"

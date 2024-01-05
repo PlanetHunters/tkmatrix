@@ -405,7 +405,7 @@ class MATRIX:
         bigger ones.
         """
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
-        assert transit_template in ('tls', 'bls')
+        assert transit_template in ('tls', 'bls', 'bls-periodogram')
         assert inject_dir is not None and isinstance(inject_dir, str)
         assert detrend_method == self.DETREND_GP or detrend_method == self.DETREND_BIWEIGHT
         if transit_template == 'tls':
