@@ -21,6 +21,7 @@ import re
 import pandas as pd
 from scipy.stats import binned_statistic
 
+from tkmatrix.custom_algorithms.BlsCustomSearchAlgorithm import BlsCustomSearchAlgorithm
 from tkmatrix.inject_model import InjectModel
 from tkmatrix.inject_rv_model import InjectRvModel
 from tkmatrix.rv import RvFitter
@@ -45,7 +46,7 @@ class MATRIX:
                  auto_detrend_period=None, prepare_algorithm=None, cache_dir=os.path.expanduser('~') + "/",
                  oscillation_reduction=False, oscillation_min_snr=4, oscillation_amplitude_threshold=0.001,
                  oscillation_ws_percent=0.01, oscillation_min_period=0.002, oscillation_max_period=0.2,
-                 cores=multiprocessing.cpu_count() - 1
+                 cores=multiprocessing.cpu_count() - 1, search_engine='cpu'
                  ):
         assert target is not None and isinstance(target, str)
         assert sectors is not None and (sectors == 'all' or isinstance(sectors, list))
@@ -81,6 +82,7 @@ class MATRIX:
         self.prepare_algorithm = prepare_algorithm
         self.cache_dir = cache_dir
         self.cores = cores
+        self.search_engine = search_engine
 
     def retrieve_object_data(self, inject_dir=None):
         self.object_info = self.lcbuilder.build_object_info(self.id, self.author, self.sectors, self.file, self.exposure_time,
@@ -385,7 +387,7 @@ class MATRIX:
 
     def recovery(self, inject_dir, snr_threshold=5, detrend_method=DETREND_BIWEIGHT, detrend_ws=0,
                  transit_template='tls', run_limit=5, custom_search_algorithm=None, max_period_search=25,
-                 oversampling=3, signal_selection_mode='period-epoch'):
+                 oversampling=3, signal_selection_mode='period-epoch', use_search_cache=False):
         """
         Given the injection dir, it will iterate over all the csvs matching light curves and try the recovery of their
         transit parameters (period and epoch).
@@ -399,6 +401,8 @@ class MATRIX:
         :param custom_search_algorithm: the user-provided search algorithm if any
         :param max_period_search: upper limit for the period search
         :param oversampling: the oversampling of the search period grid
+        :param use_search_cache: whether already found planets for given period should be looked to avoid searches of
+        bigger ones.
         """
         assert detrend_ws is not None and isinstance(detrend_ws, (int, float))
         assert transit_template in ('tls', 'bls')
@@ -413,7 +417,7 @@ class MATRIX:
         run_reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'duration_found', 'period_found', 'epoch_found',
                                            'found', 'snr', 'sde', 'run'])
         for file in sorted(os.listdir(inject_dir)):
-            file_name_matches = re.search("P([0-9]+\\.*[0-9]*)+_R([0-9]+\\.*[0-9]*)_([0-9]+\\.*[0-9]*)\\.csv", file)
+            file_name_matches = re.search("P([0-9]+\\.*[0-9]*)+_R([0-9]+\\.*[0-9]*)_T([0-9]+\\.*[0-9]*)\\.csv", file)
             if file_name_matches is not None:
                 try:
                     period = float(file_name_matches[1])
@@ -430,15 +434,28 @@ class MATRIX:
                         epochs_found = [0]
                         periods_found = [0]
                     else:
-                        self.retrieve_object_data_for_recovery(inject_dir + "/", inject_dir + file)
-                        founds, snrs, sdes, runs, durations_found, periods_found, epochs_found = \
-                            self.__search(self.lc_build.lc.time.value, self.lc_build.lc.flux.value, self.radius,
-                                          self.radiusmin, self.radiusmax, self.mass, self.massmin,
-                                          self.massmax, self.ab, epoch, period, self.MIN_SEARCH_PERIOD,
-                                          max_period_search, snr_threshold,
-                                          transit_template, detrend_method, detrend_ws,
-                                          self.lc_build.transits_min_count, run_limit, custom_search_algorithm,
-                                          oversampling, signal_selection_mode)
+                        found_entries = reports_df.loc[(reports_df['period'] == period) &
+                                                       (reports_df['epoch'] == epoch) &
+                                                       (reports_df['radius'] <= r_planet) &
+                                                       (reports_df['found'] == True)]
+                        if not use_search_cache or len(found_entries) == 0:
+                            self.retrieve_object_data_for_recovery(inject_dir + "/", inject_dir + file)
+                            founds, snrs, sdes, runs, durations_found, periods_found, epochs_found = \
+                                self.__search(self.lc_build.lc.time.value, self.lc_build.lc.flux.value, self.radius,
+                                              self.radiusmin, self.radiusmax, self.mass, self.massmin,
+                                              self.massmax, self.ab, epoch, period, self.MIN_SEARCH_PERIOD,
+                                              max_period_search, snr_threshold,
+                                              transit_template, detrend_method, detrend_ws,
+                                              self.lc_build.transits_min_count, run_limit, custom_search_algorithm,
+                                              oversampling, signal_selection_mode)
+                        else:
+                            founds = [True]
+                            snrs = [float(found_entries.iloc[0]['snr'])]
+                            sdes = [float(found_entries.iloc[0]['sde'])]
+                            runs = [int(found_entries.iloc[0]['run'])]
+                            durations_found = [float(found_entries.iloc[0]['duration_found'])]
+                            periods_found = [float(found_entries.iloc[0]['period_found'])]
+                            epochs_found = [float(found_entries.iloc[0]['epoch_found'])]
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch,
                                   "found": founds[-1], "snr": ','.join([str(i) for i in snrs]),
                                   "sde": ','.join([str(i) for i in sdes]), "run": ','.join([str(i) for i in runs]),
@@ -638,7 +655,14 @@ class MATRIX:
         if custom_search_algorithm is not None:
             return custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                                                 ab, epoch, period, min_period, max_period, min_snr, self.cores,
-                                                transit_template, detrend_method, ws, transits_min_count, run_limit)
+                                                transit_template, detrend_method, ws, transits_min_count,
+                                                  signal_selection_mode, run_limit)
+        elif transit_template == 'bls-periodogram':
+            return BlsCustomSearchAlgorithm()\
+                    .search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
+                            ab, epoch, period, min_period, max_period, min_snr, self.cores,
+                            transit_template, detrend_method, ws, transits_min_count,
+                            signal_selection_mode, run_limit)
         else:
             return self.__tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                                      period, min_period, max_period, min_snr, self.cores, transit_template,
@@ -682,7 +706,9 @@ class MATRIX:
                                   show_progress_bar=False,
                                   use_threads=cores,
                                   transit_template=transit_template,
-                                  period_grid=tls_period_grid
+                                  period_grid=tls_period_grid,
+                                  use_gpu=self.search_engine == 'gpu' or self.search_engine == 'gpu_approximate',
+                                  gpu_approximate=self.search_engine == 'gpu_approximate'
                                   )
             snr = results.snr
             if results.snr >= min_snr:
