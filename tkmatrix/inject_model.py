@@ -47,7 +47,8 @@ class InjectModel:
 
         :param inject_model: the InjectModel object to be used as transit source. The result is written into a csv file.
         """
-        logging.info('P = ' + str(inject_model.period) + ' days, Rp = ' + str(inject_model.rplanet) + ", T0 = " +
+        logging.info('P = ' + str(inject_model.period) + ' days, Rp = ' +
+                     str(inject_model.rplanet) + ", T0 = " +
                      str(inject_model.t0))
         P1 = inject_model.period * u.day
         a = np.cbrt((ac.G * inject_model.mstar * P1 ** 2) / (4 * np.pi ** 2)).to(u.au)
@@ -104,8 +105,8 @@ class InjectModel:
             result_flux = flux_t
             result_flux_err = np.array(inject_model.flux_err)
             result_time = np.array(inject_model.time)
-        file_name = os.path.join(inject_model.inject_dir + '/P' + str(inject_model.period) + '_R' +
-                                 str(inject_model.rplanet.value) + '_' + str(inject_model.t0) + '.csv')
+        file_name = os.path.join(inject_model.inject_dir + '/P' + f'{inject_model.period:06.2f}' + '_R' +
+                                 f'{inject_model.rplanet.value:05.2f}' + '_T' + str(inject_model.t0) + '.csv')
         lc_df = pd.DataFrame(columns=['#time', 'flux', 'flux_err'])
         lc_df['#time'] = result_time
         lc_df['flux'] = result_flux
