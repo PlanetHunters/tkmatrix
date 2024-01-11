@@ -450,12 +450,12 @@ class MATRIX:
                                               oversampling, signal_selection_mode)
                         else:
                             founds = [True]
-                            snrs = [float(found_entries.iloc[0]['snr'])]
-                            sdes = [float(found_entries.iloc[0]['sde'])]
-                            runs = [int(found_entries.iloc[0]['run'])]
-                            durations_found = [float(found_entries.iloc[0]['duration_found'])]
-                            periods_found = [float(found_entries.iloc[0]['period_found'])]
-                            epochs_found = [float(found_entries.iloc[0]['epoch_found'])]
+                            snrs = [float(str(found_entries.iloc[0]['snr']).split(',')[-1])]
+                            sdes = [float(str(found_entries.iloc[0]['sde']).split(',')[-1])]
+                            runs = [int(str(found_entries.iloc[0]['run']).split(',')[-1])]
+                            durations_found = [float(str(found_entries.iloc[0]['duration_found']).split(',')[-1])]
+                            periods_found = [float(str(found_entries.iloc[0]['period_found']).split(',')[-1])]
+                            epochs_found = [float(str(found_entries.iloc[0]['epoch_found']).split(',')[-1])]
                     new_report = {"period": period, "radius": r_planet, "epoch": epoch,
                                   "found": founds[-1], "snr": ','.join([str(i) for i in snrs]),
                                   "sde": ','.join([str(i) for i in sdes]), "run": ','.join([str(i) for i in runs]),
