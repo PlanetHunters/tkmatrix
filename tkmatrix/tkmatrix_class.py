@@ -639,7 +639,7 @@ class MATRIX:
 
     @staticmethod
     def transit_mask_to_df(initial_transits_mask):
-        planets_df = pd.DataFrame(columns=["name", "radius", "period", "radius_err_up", "radius_err_bottom", "mass", "mass_err_up", "mass_err_bottom"])
+        planets_df = pd.DataFrame(columns=["name", "radius", "period", "radius_err_up", "radius_err_bottom", "mass", "mass_err_up", "mass_err_bottom", "color", "border_color"])
         if initial_transits_mask is not None:
             for initial_transit_mask in initial_transits_mask:
                 planets_df = pd.concat([planets_df, pd.DataFrame.from_dict({"name": [initial_transit_mask['NAME'] if 'NAME' in initial_transit_mask else ""],
@@ -649,7 +649,10 @@ class MATRIX:
                                                                   "radius_err_bottom": [initial_transit_mask['R_LOW_ERR'] if 'R_LOW_ERR' in initial_transit_mask else ""],
                                                                   "mass": [initial_transit_mask['M'] if 'M' in initial_transit_mask else ""],
                                                                   "mass_err_up": [initial_transit_mask['M_UP_ERR'] if 'M_UP_ERR' in initial_transit_mask else ""],
-                                                                  "mass_err_bottom": [initial_transit_mask['M_LOW_ERR'] if 'M_LOW_ERR' in initial_transit_mask else ""]}, orient="columns")],
+                                                                  "mass_err_bottom": [initial_transit_mask['M_LOW_ERR'] if 'M_LOW_ERR' in initial_transit_mask else ""],
+                                                                  "color": [initial_transit_mask['COLOR'] if 'COLOR' in initial_transit_mask else ""],
+                                                                  "border_color": [initial_transit_mask['BORDER_COLOR'] if 'BORDER_COLOR' in initial_transit_mask else ""]
+                                                                            }, orient="columns")],
                                        ignore_index=True)
         return planets_df
 
@@ -685,10 +688,25 @@ class MATRIX:
         normed_hist = (100. * h1 / (h1 + h2))
         fig, ax = plt.subplots(figsize=(2.7 * 5, 5))
         im = plt.imshow(normed_hist.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), interpolation='none',
-                        aspect='auto', cmap='viridis', vmin=0, vmax=100, rasterized=True)
+                        aspect='auto', cmap='magma', vmin=0, vmax=100, rasterized=True)
         cbar = plt.colorbar(im)
         cbar.set_label(label='Recovery rate (%)', size=16)
         cbar.ax.tick_params(labelsize=14)
+
+        # Regions
+        x_centers = 0.5 * (x[:-1] + x[1:])
+        y_centers = 0.5 * (y[:-1] + y[1:])
+        Xc, Yc = np.meshgrid(x_centers, y_centers)
+        contour_levels = [50]
+        contour_levels1 = [5]
+        contour_levels2 = [95]
+        cs = ax.contour(Xc, Yc, normed_hist.T, levels=contour_levels, colors='white', linewidths=1.0, linestyles='--')
+        cs1 = ax.contour(Xc, Yc, normed_hist.T, levels=contour_levels1, colors='white', linewidths=2.0, linestyles='-')
+        cs2 = ax.contour(Xc, Yc, normed_hist.T, levels=contour_levels2, colors='cornflowerblue', linewidths=2.0,
+                         linestyles='-')
+        ax.clabel(cs2, inline=True, fontsize=15, fmt='%d%%')
+        ax.clabel(cs1, inline=True, fontsize=15, fmt='%d%%')
+
         plt.xlabel('Injected period (days)', fontsize=18)
         plt.ylabel(r'Injected ' + ('radius' if not is_rv else 'mass') + ' (' + column_units + '$_\oplus$)', fontsize=18)
         ax.set_title(object_id + " - I&R (" + str(phases) + " " + phases_str + ")", fontsize=24)
@@ -704,9 +722,11 @@ class MATRIX:
         ax.tick_params(axis='both', which='major', labelsize=14)
         if planets_df is not None:
             for index, row in planets_df.iterrows():
+                color = row['color'] if 'color' in row else 'firebrick'
+                border_color = row['border_color'] if 'color' in row else 'black'
                 ax.errorbar([row['period']], [row[column]],
                             yerr=[np.full(1, row[column + '_err_bottom']), np.full(1, row[column + '_err_up'])],
-                            fmt='o', color='firebrick', markersize=12)
+                            fmt='o', color=color, mec=border_color, markersize=12, capsize=5)
         plt.savefig(inject_dir + '/inj-rec' + ('-rv' if is_rv else '') + '.png', bbox_inches='tight', dpi=200)
         plt.close()
 
