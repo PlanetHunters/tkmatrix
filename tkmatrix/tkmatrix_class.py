@@ -121,8 +121,8 @@ class MATRIX:
     @staticmethod
     def retrieve_object_data(search_input: SearchInput, inject_dir=None):
         lcbuilder_object = LcBuilder()
-        object_info = lcbuilder_object.build_object_info(search_input.target, search_input.author, search_input.sectors,
-                                                         search_input.file, search_input.exposure_time,
+        object_info = lcbuilder_object.build_object_info(search_input.target, [search_input.author], search_input.sectors,
+                                                         search_input.file, [search_input.exposure_time],
                                                          None, None, search_input.star_info, None,
                                                          search_input.eleanor_corr_flux, search_input.outliers_sigma,
                                                          False, search_input.high_rms_threshold,
@@ -132,7 +132,7 @@ class MATRIX:
                                                          search_input.prepare_algorithm, False,
                                                          search_input.oscillation_min_snr, search_input.oscillation_amplitude_threshold,
                                                          search_input.oscillation_ws_percent, search_input.oscillation_min_period,
-                                                         search_input.oscillation_max_period)
+                                                         search_input.oscillation_max_period, binning=0)
         if inject_dir is None:
             inject_dir = MATRIX.build_inject_dir(search_input.dir, object_info)
         lcbuilder_object = LcBuilder()
@@ -156,7 +156,7 @@ class MATRIX:
     def retrieve_object_data_for_recovery(inject_dir, recovery_file, search_input: SearchInput):
         MATRIX.setup_logging(inject_dir)
         lcbuilder_object = LcBuilder()
-        object_info = lcbuilder_object.build_object_info("", None, None, recovery_file, search_input.exposure_time,
+        object_info = lcbuilder_object.build_object_info("", None, None, recovery_file, [search_input.exposure_time],
                                                        search_input.initial_mask, search_input.initial_transit_mask,
                                                        search_input.star_info, None,
                                                        search_input.eleanor_corr_flux, search_input.outliers_sigma,
@@ -167,7 +167,7 @@ class MATRIX:
                                                        search_input.prepare_algorithm, search_input.oscillation_reduction,
                                                        search_input.oscillation_min_snr, search_input.oscillation_amplitude_threshold,
                                                        search_input.oscillation_ws_percent, search_input.oscillation_min_period,
-                                                       search_input.oscillation_max_period)
+                                                       search_input.oscillation_max_period, binning=0)
 
         if object_info.reduce_simple_oscillations and \
                 object_info.oscillation_max_period < object_info.oscillation_min_period:
@@ -311,7 +311,9 @@ class MATRIX:
         if inject_dir is None:
             inject_dir, self.object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
         habitability_calculator = HabitabilityCalculator()
-        semimajor_axis = HabitabilityCalculator().calculate_semi_major_axis(min_period, self.search_input.mstar.value)
+        semimajor_axis, _, _ = HabitabilityCalculator().calculate_semi_major_axis(min_period,
+                                                                            min_period / 1000, min_period / 1000,
+                                                                            self.search_input.mstar.value, 0.1, 0.1)
         rstar_au = self.search_input.rstar.to(u.au).value
         if rstar_au / semimajor_axis >= 1:
             period_for_rstar = habitability_calculator.au_to_period(self.search_input.mstar.value, rstar_au)
@@ -413,7 +415,7 @@ class MATRIX:
                     new_report = {"period": period, "mass": m_planet, "epoch": epoch, "found": found, "snr": snr,
                                   "sde": sde, "run": run, "mass_found": mass_found,
                                   "period_found": period_found, "epoch_found": omega_found}
-                    reports_df = reports_df.append(new_report, ignore_index=True)
+                    reports_df = pd.concat([reports_df, pd.DataFrame([new_report])], ignore_index=True)
                     print("RV P=" + str(period) + ", M=" + str(m_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
                         found) +
                           " WITH SNR " + str(snr) + " AND SDE " + str(sde))
@@ -495,7 +497,7 @@ class MATRIX:
                         period = float(file_name_matches[1])
                         r_planet = float(file_name_matches[2])
                         epoch = float(file_name_matches[3])
-                        df = pd.read_csv(inject_dir + file, float_precision='round_trip', sep=',', usecols=['#time', 'flux', 'flux_err'])
+                        df = pd.read_csv(inject_dir + file, float_precision='round_trip', sep=',', usecols=['time', 'flux', 'flux_err'])
                         if len(df) == 0:
                             founds = [True]
                             snrs = [20]
@@ -533,12 +535,12 @@ class MATRIX:
                                       "duration_found": ','.join([str(i) for i in durations_found]),
                                       "period_found": ','.join([str(i) for i in periods_found]),
                                       "epoch_found": ','.join([str(i) for i in epochs_found])}
-                        reports_df = reports_df.append(new_report, ignore_index=True)
+                        reports_df = pd.concat([reports_df, pd.DataFrame([new_report])], ignore_index=True)
                         for i in np.arange(0, len(founds)):
-                            run_reports_df = run_reports_df.append(
-                                {"period": period, "radius": r_planet, "epoch": epoch, "found": founds[i], "snr": snrs[i],
+                            run_reports_df = pd.concat([run_reports_df,
+                                pd.DataFrame([{"period": period, "radius": r_planet, "epoch": epoch, "found": founds[i], "snr": snrs[i],
                                       "sde": sdes[i], "run": runs[i], "duration_found": durations_found[i],
-                                      "period_found": periods_found[i], "epoch_found": epochs_found[i]}, ignore_index=True)
+                                      "period_found": periods_found[i], "epoch_found": epochs_found[i]}])], ignore_index=True)
                         print("P=" + str(period) + ", R=" + str(r_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
                             founds[-1]) +
                               " WITH SNRs " + str(snrs) + " AND SDEs " + str(sdes))
@@ -556,7 +558,7 @@ class MATRIX:
     def recover_period(search_input: SearchInput, lock):
         try:
             df = pd.read_csv(search_input.inject_file_dir, float_precision='round_trip', sep=',',
-                             usecols=['#time', 'flux', 'flux_err'])
+                             usecols=['time', 'flux', 'flux_err'])
             if len(df) == 0:
                 founds = [True]
                 snrs = [20]
@@ -604,12 +606,13 @@ class MATRIX:
             with lock:
                 reports_df = pd.read_csv(search_input.dir + "a_tls_report.csv")
                 run_reports_df = pd.read_csv(search_input.dir + "a_tls_report_per_run.csv")
-                reports_df = reports_df.append(new_report, ignore_index=True)
+                reports_df = pd.concat([reports_df, pd.DataFrame([new_report])], ignore_index=True)
                 for i in np.arange(0, len(founds)):
-                    run_reports_df = run_reports_df.append(
-                        {"period": search_input.period, "radius": search_input.r_planet, "epoch": search_input.epoch, "found": founds[i], "snr": snrs[i],
+                    run_reports_df = pd.concat([run_reports_df,
+                        pd.DataFrame([{"period": search_input.period, "radius": search_input.r_planet,
+                                       "epoch": search_input.epoch, "found": founds[i], "snr": snrs[i],
                          "sde": sdes[i], "run": runs[i], "duration_found": durations_found[i],
-                         "period_found": periods_found[i], "epoch_found": epochs_found[i]}, ignore_index=True)
+                         "period_found": periods_found[i], "epoch_found": epochs_found[i]}])], ignore_index=True)
                 print("P=" + str(search_input.period) + ", R=" + str(search_input.r_planet) + ", T0=" + str(search_input.epoch) + ", FOUND WAS " + str(
                     founds[-1]) +
                       " WITH SNRs " + str(snrs) + " AND SDEs " + str(sdes))
@@ -722,8 +725,8 @@ class MATRIX:
         ax.tick_params(axis='both', which='major', labelsize=14)
         if planets_df is not None:
             for index, row in planets_df.iterrows():
-                color = row['color'] if 'color' in row else 'firebrick'
-                border_color = row['border_color'] if 'color' in row else 'black'
+                color = row['color'] if 'color' in row and row['color'] != '' else 'firebrick'
+                border_color = row['border_color'] if 'border_color' and row['border_color'] != '' in row else 'black'
                 ax.errorbar([row['period']], [row[column]],
                             yerr=[np.full(1, row[column + '_err_bottom']), np.full(1, row[column + '_err_up'])],
                             fmt='o', color=color, mec=border_color, markersize=12, capsize=5)
@@ -862,7 +865,7 @@ class MATRIX:
                     if signal_selection_mode == 'period-epoch':
                         found_signal = HarmonicSelector.is_harmonic(results.transit_times[0], epoch, results.period, period)
                     else:
-                        found_signal = HarmonicSelector.multiple_of(results.period, period) != 0
+                        found_signal = HarmonicSelector.multiple_of(results.period, period, 0.0025) != 0
                     # plt.plot(foldedleastsquares.fold(time, results.period, results.transit_times[0], flux))
                     # plt.xlim([0.4, 0.6])
                     # plt.show()
