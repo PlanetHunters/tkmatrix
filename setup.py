@@ -36,12 +36,12 @@ setuptools.setup(
     cmdclass={'install': CustomInstall},
     python_requires='>=3.10',
     install_requires=['argparse==1.4.0',
-                        'beautifulsoup4==4.9.3',
+                        'beautifulsoup4==4.13.4',
                         'configparser==5.0.1',
-                        "corner==2.1.0",
+                        "corner==2.2.3",
                         "lcbuilder==0.25.4",
-                        "mock==4.0.3",
-                        'pyparsing==2.4.7', # Matplotlib dependency
+                        "mock==5.2.0",
+                        'pyparsing==3.2.3', # Matplotlib dependency
                         "seaborn==0.13.2",
                         'setuptools>=41.0.0',
                         "sklearn==0.0"
