@@ -1,0 +1,3 @@
+[submodule "tkmatrix/ellc"]
+	path = tkmatrix/ellc
+	url = https://github.com/pmaxted/ellc.git
