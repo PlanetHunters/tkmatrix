@@ -17,9 +17,9 @@ jobs:
         os:
           - Ubuntu
         py:
-          - "3.10"
+          - "3.11"
         toxenv:
-          - "py310"
+          - "py311"
         exclude:
     steps:
       - name: Setup python for test ${{ matrix.py }}

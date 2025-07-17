@@ -34,7 +34,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     cmdclass={'install': CustomInstall},
-    python_requires='>=3.10',
+    python_requires='>=3.11',
     install_requires=['argparse==1.4.0',
                         'beautifulsoup4==4.13.4',
                         'configparser==5.0.1',
