@@ -15,8 +15,8 @@ class TestsMatrix(unittest.TestCase):
         matrix = MATRIX(target, [1], lcbuilder.constants.SPOC_AUTHOR, ".", exposure_time=120)
         inject_dir = None
         try:
-            inject_dir, period_grid, radius_grid = matrix.inject(1, 5, 5, 1, 3, 3, 1)
-            self.assertEqual(10, len(os.listdir(inject_dir)))
+            inject_dir, period_grid, radius_grid = matrix.inject(1, 5, 5, 3, 3, 3, 3)
+            self.assertEqual(8, len(os.listdir(inject_dir)))
             self.assertEqual([1], matrix.search_input.sectors)
             self.assertAlmostEqual(0.47, matrix.search_input.star_info.mass, 2)
             self.assertAlmostEqual(0.44, matrix.search_input.star_info.mass_min, 2)
@@ -34,21 +34,20 @@ class TestsMatrix(unittest.TestCase):
             self.assertAlmostEqual(0.284, matrix.search_input.rstar_max.value, 3)
             self.assertEqual(".", matrix.search_input.dir)
             matrix.recovery(inject_dir, 5, detrend_ws=0, oversampling=0.1)
-            matrix.plot_results(target, inject_dir)
-            self.assertEqual(9, len(os.listdir(inject_dir)))
+            self.assertEqual(10, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
 
-    def test_inject_one_preserve(self):
+    def test_inject_9_preserve(self):
         target = "TIC 220513363"
         matrix = MATRIX(target, [1], lcbuilder.constants.SPOC_AUTHOR, ".", True, exposure_time=120)
         inject_dir = None
         try:
-            inject_dir, period_grid, radius_grid = matrix.inject(1, 5, 5, 1, 3, 3, 1)
+            inject_dir, period_grid, radius_grid = matrix.inject(1, 3, 5, 3, 1, 3, 3)
             matrix.recovery(inject_dir, 5, detrend_ws=0, oversampling=0.1)
             matrix.plot_results(target, inject_dir)
-            self.assertEqual(10, len(os.listdir(inject_dir)))
+            self.assertEqual(20, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
@@ -59,7 +58,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir, period_grid, radius_grid = matrix.inject(1, 5, 5.1, 2, 3, 3.1, 2)
-            self.assertEqual(13, len(os.listdir(inject_dir)))
+            self.assertEqual(11, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
@@ -70,7 +69,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir, period_grid, radius_grid = matrix.inject(2, 5, 5, 1, 3, 3, 1)
-            self.assertEqual(11, len(os.listdir(inject_dir)))
+            self.assertEqual(9, len(os.listdir(inject_dir)))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
@@ -135,7 +134,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir, period_grid, radius_grid = matrix.inject(1, 5, 5, 1, 3, 3, 1)
-            self.assertEqual(10, len(os.listdir(inject_dir)))
+            self.assertEqual(8, len(os.listdir(inject_dir)))
             self.assertEqual((0.2, 0.5), matrix.search_input.star_info.ld_coefficients)
             self.assertEqual(2000, matrix.search_input.star_info.teff)
             self.assertAlmostEqual(0.7, matrix.search_input.star_info.mass)
@@ -151,7 +150,7 @@ class TestsMatrix(unittest.TestCase):
         inject_dir = None
         try:
             inject_dir, period_grid, radius_grid = matrix.inject(1, 5, 5, 1, 3, 3, 1)
-            self.assertEqual(10, len(os.listdir(inject_dir)))
+            self.assertEqual(8, len(os.listdir(inject_dir)))
             self.assertEqual((0.1258, 0.235), matrix.search_input.star_info.ld_coefficients)
             self.assertEqual(31000.0, matrix.search_input.star_info.teff)
             self.assertAlmostEqual(0.47, matrix.search_input.star_info.mass)
@@ -173,7 +172,7 @@ class TestsMatrix(unittest.TestCase):
         try:
             inject_dir, period_grid, radius_grid = matrix.inject(1, 5, 5.1, 2, 3, 3.1, 2, period_grid=period_grid_expected,
                                                                  radius_grid=radius_grid_expected)
-            self.assertEqual(29, len(os.listdir(inject_dir)))
+            self.assertEqual(27, len(os.listdir(inject_dir)))
             self.assertEqual(period_grid_expected, period_grid)
             self.assertEqual(radius_grid_expected, radius_grid)
         finally:
