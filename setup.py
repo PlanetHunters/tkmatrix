@@ -39,7 +39,7 @@ setuptools.setup(
                         'beautifulsoup4==4.13.4',
                         'configparser==5.0.1',
                         "corner==2.2.3",
-                        "lcbuilder==0.25.4",
+                        "lcbuilder==0.26.0",
                         "mock==5.2.0",
                         'pyparsing==3.2.3', # Matplotlib dependency
                         "seaborn==0.13.2",

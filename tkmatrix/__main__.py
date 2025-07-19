@@ -116,6 +116,8 @@ if __name__ == '__main__':
     eleanor_corr_flux = matrix_user_properties["ELEANOR_CORRECTED_FLUX"]
     cache_dir = matrix_user_properties["CACHE_DIR"]
     search_engine = matrix_user_properties["SEARCH_ENGINE"]
+    period_match_tolerance = matrix_user_properties["PERIOD_MATCH_TOLERANCE"]
+    epoch_match_tolerance = matrix_user_properties["EPOCH_MATCH_TOLERANCE"]
     if cache_dir is None:
         cache_dir = os.path.expanduser('~') + "/"
     ir = MATRIX(target, matrix_user_properties["SECTORS"], author, args.dir, args.preserve, star_info, file, exptime,
@@ -162,6 +164,7 @@ if __name__ == '__main__':
                 matrix_user_properties["RUN_LIMIT"],
                 custom_search, matrix_user_properties["MIN_PERIOD_SEARCH"], matrix_user_properties["MAX_PERIOD_SEARCH"], matrix_user_properties["OVERSAMPLING"],
                 matrix_user_properties["SIGNAL_SELECTION_MODE"],
-                use_search_cache=matrix_user_properties["USE_SEARCH_CACHE"])
+                use_search_cache=matrix_user_properties["USE_SEARCH_CACHE"], period_match_tolerance=period_match_tolerance,
+                 epoch_match_tolerance=epoch_match_tolerance)
     ir.plot_results(target, inject_dir, planets_df=planets_df)
     print("Execution time: " + str(datetime.datetime.now() - start_time))

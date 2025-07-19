@@ -20,7 +20,8 @@ class BlsCustomSearchAlgorithm(CustomSearchAlgorithm):
 
     def search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                ab, epoch, period, min_period, max_period, min_snr, cores, transit_template, detrend_method, ws,
-               transits_min_count, signal_selection_mode, run_limit, oversampling):
+               transits_min_count, signal_selection_mode, run_limit, oversampling, period_match_tolerance,
+               epoch_match_tolerance):
 
         snr = 1e12
         found_signal = False
@@ -60,9 +61,9 @@ class BlsCustomSearchAlgorithm(CustomSearchAlgorithm):
                 if results.transit_time is not None and len(results.transit_time) > 0:
                     print(f"Selecting signal with mode {signal_selection_mode}")
                     if signal_selection_mode == 'period-epoch':
-                        found_signal = HarmonicSelector.is_harmonic(t0, epoch, found_period, period)
+                        found_signal = HarmonicSelector.is_harmonic(t0, epoch, found_period, period, epoch_match_tolerance, period_match_tolerance)
                     else:
-                        found_signal = HarmonicSelector.multiple_of(found_period, period) != 0
+                        found_signal = HarmonicSelector.multiple_of(found_period, period, period_match_tolerance) != 0
                     if found_signal:
                         found_signals = found_signals + [found_signal]
                         snrs = snrs + [snr]

@@ -103,6 +103,10 @@ CUSTOM_SEARCH_ALGORITHM:
 CACHE_DIR:
 # Allows skipping higher radius searches for already found planets at a given period, saving much computational time
 USE_SEARCH_CACHE: False
+# The tolerance for the period matching
+PERIOD_MATCH_TOLERANCE: 0.01
+# The tolerance for the period matching
+PERIOD_EPOCH_MATCH_TOLERANCE: 0.01
 # The star parameters. This is important in case the official catalogues are incomplete.
 STAR:
 #  TIC 273369281:

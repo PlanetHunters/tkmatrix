@@ -85,6 +85,8 @@ class SearchInput:
     custom_search_algorithm = None
     oversampling: float = None
     signal_selection_mode: str = None
+    period_match_tolerance: float = None
+    epoch_match_tolerance: float = None
 
 
 class MATRIX:
@@ -428,7 +430,8 @@ class MATRIX:
 
     def recovery(self, inject_dir, snr_threshold=5, detrend_method=DETREND_BIWEIGHT, detrend_ws=0,
                  transit_template='tls', run_limit=5, custom_search_algorithm=None, min_period_search=0.5, max_period_search=25,
-                 oversampling=3, signal_selection_mode='period-epoch', use_search_cache=False):
+                 oversampling=3, signal_selection_mode='period-epoch', use_search_cache=False, period_match_tolerance=0.01,
+                 epoch_match_tolerance=0.01):
         """
         Given the injection dir, it will iterate over all the csvs matching light curves and try the recovery of their
         transit parameters (period and epoch).
@@ -466,6 +469,8 @@ class MATRIX:
         self.search_input.transit_template = transit_template
         self.search_input.signal_selection_mode = signal_selection_mode
         self.search_input.use_search_cache = use_search_cache
+        self.search_input.period_match_tolerance = period_match_tolerance
+        self.search_input.epoch_match_tolerance = epoch_match_tolerance
         reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'duration_found', 'period_found', 'epoch_found',
                                            'found', 'snr', 'sde', 'run'])
         run_reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'duration_found', 'period_found', 'epoch_found',
@@ -588,7 +593,7 @@ class MATRIX:
                                       search_input.detrend_method, search_input.detrend_ws, lc_build.transits_min_count,
                                       search_input.run_limit, search_input.custom_search_algorithm, search_input.oversampling,
                                       search_input.signal_selection_mode, search_input.star_info, search_input.cores,
-                                      search_input.search_engine)
+                                      search_input.search_engine, search_input.period_match_tolerance, search_input.epoch_match_tolerance)
                 else:
                     founds = [True]
                     snrs = [float(str(found_entries.iloc[0]['snr']).split(',')[-1])]
@@ -791,7 +796,8 @@ class MATRIX:
     @staticmethod
     def search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                period, min_period, max_period, min_snr, transit_template, detrend_method, ws, transits_min_count,
-               run_limit, custom_search_algorithm, oversampling, signal_selection_mode, star_info, cores, search_engine):
+               run_limit, custom_search_algorithm, oversampling, signal_selection_mode, star_info, cores, search_engine,
+               period_match_tolerance, epoch_match_tolerance):
         tls_period_grid, oversampling = LcbuilderHelper.calculate_period_grid(time, min_period, max_period,
                                                                               oversampling, star_info,
                                                                               transits_min_count)
@@ -799,23 +805,27 @@ class MATRIX:
             return custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                                                 ab, epoch, period, min_period, max_period, min_snr, cores,
                                                 transit_template, detrend_method, ws, transits_min_count,
-                                                  signal_selection_mode, run_limit)
+                                                  signal_selection_mode, run_limit, period_match_tolerance,
+                                                  epoch_match_tolerance)
         elif transit_template == 'bls-periodogram':
             return BlsCustomSearchAlgorithm()\
                     .search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                             ab, epoch, period, min_period, max_period, min_snr, cores,
                             transit_template, detrend_method, ws, transits_min_count,
-                            signal_selection_mode, run_limit, oversampling)
+                            signal_selection_mode, run_limit, oversampling, period_match_tolerance,
+                            epoch_match_tolerance)
         else:
             return MATRIX.tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                                      period, min_period, max_period, min_snr, cores, transit_template,
                                      detrend_method, ws, transits_min_count, run_limit, tls_period_grid,
-                                     signal_selection_mode, search_engine)
+                                     signal_selection_mode, search_engine, period_match_tolerance,
+                                     epoch_match_tolerance)
 
     @staticmethod
     def tls_search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max, ab, epoch,
                      period, min_period, max_period, min_snr, cores, transit_template, detrend_method, ws,
-                     transits_min_count, run_limit, tls_period_grid, signal_selection_mode, search_engine):
+                     transits_min_count, run_limit, tls_period_grid, signal_selection_mode, search_engine,
+                   period_match_tolerance=0.01, epoch_match_tolerance=0.01):
         snr = 1e12
         found_signal = False
         time, flux = cleaned_array(time, flux)
@@ -863,9 +873,11 @@ class MATRIX:
                 if results.transit_times is not None and len(results.transit_times) > 0:
                     print(f"Selecting signal with mode {signal_selection_mode}")
                     if signal_selection_mode == 'period-epoch':
-                        found_signal = HarmonicSelector.is_harmonic(results.transit_times[0], epoch, results.period, period)
+                        found_signal = HarmonicSelector.is_harmonic(results.transit_times[0], epoch, results.period,
+                                                                    period, epoch_match_tolerance,
+                                                                    period_match_tolerance)
                     else:
-                        found_signal = HarmonicSelector.multiple_of(results.period, period, 0.0025) != 0
+                        found_signal = HarmonicSelector.multiple_of(results.period, period, period_match_tolerance) != 0
                     # plt.plot(foldedleastsquares.fold(time, results.period, results.transit_times[0], flux))
                     # plt.xlim([0.4, 0.6])
                     # plt.show()
