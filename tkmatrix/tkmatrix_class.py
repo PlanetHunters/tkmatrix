@@ -525,7 +525,8 @@ class MATRIX:
                                                   search_input.ab, epoch, period, min_period_search, max_period_search, snr_threshold,
                                                   transit_template, detrend_method, detrend_ws, lc_build.transits_min_count, run_limit,
                                                   custom_search_algorithm, oversampling, signal_selection_mode, search_input.star_info,
-                                                  search_input.cores, search_input.search_engine)
+                                                  search_input.cores, search_input.search_engine, search_input.period_match_tolerance,
+                                                  search_input.epoch_match_tolerance)
                             else:
                                 founds = [True]
                                 snrs = [float(str(found_entries.iloc[0]['snr']).split(',')[-1])]
