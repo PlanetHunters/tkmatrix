@@ -106,7 +106,7 @@ USE_SEARCH_CACHE: False
 # The tolerance for the period matching
 PERIOD_MATCH_TOLERANCE: 0.01
 # The tolerance for the period matching
-PERIOD_EPOCH_MATCH_TOLERANCE: 0.01
+EPOCH_MATCH_TOLERANCE: 0.01
 # The star parameters. This is important in case the official catalogues are incomplete.
 STAR:
 #  TIC 273369281:
