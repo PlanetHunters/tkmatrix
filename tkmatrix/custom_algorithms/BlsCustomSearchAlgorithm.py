@@ -61,7 +61,8 @@ class BlsCustomSearchAlgorithm(CustomSearchAlgorithm):
                 if results.transit_time is not None and len(results.transit_time) > 0:
                     print(f"Selecting signal with mode {signal_selection_mode}")
                     if signal_selection_mode == 'period-epoch':
-                        found_signal = HarmonicSelector.is_harmonic(t0, epoch, found_period, period, epoch_match_tolerance, period_match_tolerance)
+                        found_signal = HarmonicSelector.is_harmonic(t0, epoch, found_period, period,
+                                                                    epoch_match_tolerance, period_match_tolerance)
                     else:
                         found_signal = HarmonicSelector.multiple_of(found_period, period, period_match_tolerance) != 0
                     if found_signal:
