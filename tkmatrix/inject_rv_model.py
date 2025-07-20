@@ -31,8 +31,8 @@ class InjectRvModel:
                      str(inject_model.t0))
         injected_rv = RvFitter.inject_rv(inject_model.time, inject_model.mstar, inject_model.rstar,
                                          inject_model.mplanet, inject_model.period, inject_model.t0)
-        file_name = os.path.join(inject_model.inject_dir + '/RV_P' + str(inject_model.period) + '_M' +
-                                 str(inject_model.mplanet.value) + '_' + str(inject_model.t0) + '.csv')
+        file_name = os.path.join(inject_model.inject_dir + '/RV_P' + f'{inject_model.period:06.2f}' + '_M' +
+                                 f'{inject_model.mplanet.value:05.2f}' + '_T' + f'{inject_model.t0:05.2f}' + '.csv')
         lc_df = pd.DataFrame(columns=['bjd', 'rv', 'rv_err'])
         lc_df['bjd'] = inject_model.time
         lc_df['rv'] = inject_model.rv + injected_rv

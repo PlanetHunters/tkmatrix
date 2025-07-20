@@ -106,7 +106,7 @@ class InjectModel:
             result_flux_err = np.array(inject_model.flux_err)
             result_time = np.array(inject_model.time)
         file_name = os.path.join(inject_model.inject_dir + '/P' + f'{inject_model.period:06.2f}' + '_R' +
-                                 f'{inject_model.rplanet.value:05.2f}' + '_T' + str(inject_model.t0) + '.csv')
+                                 f'{inject_model.rplanet.value:05.2f}' + '_T' + f'{inject_model.t0:05.2f}' + '.csv')
         lc_df = pd.DataFrame(columns=['time', 'flux', 'flux_err'])
         lc_df['time'] = result_time
         lc_df['flux'] = result_flux

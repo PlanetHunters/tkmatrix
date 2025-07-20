@@ -237,6 +237,7 @@ class MATRIX:
             assert max_period >= min_period
             period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
                 else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
+        period_grid = np.round(period_grid, 2)
         if mass_grid is None:
             assert min_period is not None and isinstance(min_period, (int, float)) and min_period > 0
             assert max_period is not None and isinstance(max_period, (int, float)) and max_period > 0
@@ -247,6 +248,7 @@ class MATRIX:
             assert max_mass >= min_mass
             mass_grid = np.linspace(min_mass, max_mass, steps_mass) if mass_grid_geom == "lin" \
                 else np.logspace(np.log10(min_mass), np.log10(max_mass), steps_period)
+        mass_grid = np.round(mass_grid, 2)
         if inject_dir is None:
             inject_dir, object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
         habitability_calculator = HabitabilityCalculator()
@@ -303,6 +305,7 @@ class MATRIX:
             assert max_period >= min_period
             period_grid = np.linspace(min_period, max_period, steps_period) if period_grid_geom == "lin" \
                 else np.logspace(np.log10(min_period), np.log10(max_period), steps_period)
+        period_grid = np.round(period_grid, 2)
         if radius_grid is None:
             assert min_radius is not None and isinstance(min_radius, (int, float)) and min_radius > 0
             assert max_radius is not None and isinstance(max_radius, (int, float)) and max_radius > 0
@@ -310,6 +313,7 @@ class MATRIX:
             assert max_radius >= min_radius
             radius_grid = np.linspace(min_radius, max_radius, steps_radius) if radius_grid_geom == "lin" \
                 else np.logspace(np.log10(min_radius), np.log10(max_radius), steps_period)
+        radius_grid = np.round(radius_grid, 2)
         if inject_dir is None:
             inject_dir, self.object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
         habitability_calculator = HabitabilityCalculator()
@@ -465,10 +469,9 @@ class MATRIX:
         self.search_input.oversampling = oversampling
         self.search_input.custom_search_algorithm = custom_search_algorithm
         self.search_input.max_period_search = max_period_search
-        self.search_input.min_period_search = max_period_search
+        self.search_input.min_period_search = min_period_search
         self.search_input.transit_template = transit_template
         self.search_input.signal_selection_mode = signal_selection_mode
-        self.search_input.use_search_cache = use_search_cache
         self.search_input.period_match_tolerance = period_match_tolerance
         self.search_input.epoch_match_tolerance = epoch_match_tolerance
         reports_df = pd.DataFrame(columns=['period', 'radius', 'epoch', 'duration_found', 'period_found', 'epoch_found',
