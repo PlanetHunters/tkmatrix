@@ -1,7 +1,7 @@
 import os
 import shutil
 import unittest
-
+import numpy as np
 import lcbuilder.constants
 import pytest
 from lcbuilder.star.starinfo import StarInfo
@@ -173,8 +173,8 @@ class TestsMatrix(unittest.TestCase):
             inject_dir, period_grid, radius_grid = matrix.inject(1, 5, 5.1, 2, 3, 3.1, 2, period_grid=period_grid_expected,
                                                                  radius_grid=radius_grid_expected)
             self.assertEqual(27, len(os.listdir(inject_dir)))
-            self.assertEqual(period_grid_expected, period_grid)
-            self.assertEqual(radius_grid_expected, radius_grid)
+            np.testing.assert_array_equal(period_grid, period_grid_expected)
+            np.testing.assert_array_equal(radius_grid, radius_grid_expected)
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)
