@@ -102,7 +102,7 @@ soupsieve==2.7
 sympy==1.14.0
 tess-point==0.9.2
 threadpoolctl==3.6.0
-tkmatrix==0.13.0
+tkmatrix==0.13.1
 torch==2.7.0
 tornado==6.5.1
 tqdm==4.67.1
