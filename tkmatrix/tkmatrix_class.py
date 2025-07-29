@@ -2,6 +2,7 @@ import copy
 import dataclasses
 import logging
 import multiprocessing
+import shutil
 import sys
 import traceback
 from multiprocessing import Pool
@@ -646,6 +647,8 @@ class MATRIX:
                 os.remove(inject_dir + file)
         if not self.search_input.preserve:
             for file in os.listdir(inject_dir):
+                if os.path.isdir(inject_dir + file):
+                    shutil.rmtree(inject_dir + file)
                 if file.endswith(".csv") and (file.startswith("P") or file.startswith("RV_P")):
                     os.remove(inject_dir + file)
 
