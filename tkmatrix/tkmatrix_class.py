@@ -318,15 +318,37 @@ class MATRIX:
         if inject_dir is None:
             inject_dir, self.object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
         habitability_calculator = HabitabilityCalculator()
-        semimajor_axis, _, _ = HabitabilityCalculator().calculate_semi_major_axis(min_period,
+        semimajor_axis_min_period, _, _ = HabitabilityCalculator().calculate_semi_major_axis(min_period,
                                                                             min_period / 1000, min_period / 1000,
                                                                             self.search_input.mstar.value, 0.1, 0.1)
         rstar_au = self.search_input.rstar.to(u.au).value
-        if rstar_au / semimajor_axis >= 1:
+        if rstar_au / semimajor_axis_min_period >= 1:
             period_for_rstar = habitability_calculator.au_to_period(self.search_input.mstar.value, rstar_au)
             raise ValueError(
                 "Your minimum period is in a shorter orbit than the star radius. The minimum period for this star should be > " + str(
                     round(period_for_rstar, 2)) + ' days')
+        semimajor_axis_max_period, _, _ = HabitabilityCalculator().calculate_semi_major_axis(max_period,
+                                                                            max_period / 1000, max_period / 1000,
+                                                                            self.search_input.mstar.value, 0.1, 0.1)
+        inclinations = [transit_mask['I'] for transit_mask in self.search_input.initial_transit_mask]
+        inclination_min = LcbuilderHelper.convert_from_to(np.nanmean(inclinations), u.degree, u.rad)
+        star_radius_au = LcbuilderHelper.convert_from_to(self.search_input.rstar_min.value, u.R_sun, u.au)
+        # Eq 1 from https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.5585J/abstract
+        pesimistic_impact_param = semimajor_axis_max_period * np.cos(inclination_min) / star_radius_au
+        if pesimistic_impact_param > 1:
+            try_periods = np.linspace(min_period, max_period, 1000)
+            impact_params = [HabitabilityCalculator().calculate_semi_major_axis(period,
+                                                                            period / 1000, period / 1000,
+                                                                            self.search_input.mstar.value, 0.1, 0.1)[0] * np.cos(inclination_min) / star_radius_au
+                             for period in try_periods]
+            first_index = np.argwhere(np.array(impact_params) > 1)[0]
+            first_index = first_index - 1 if first_index > 0 else first_index
+            raise ValueError("The pesimistic impact parameter is larger than 1. Therefore, there are some of your"
+                             " scenarios that are not physically transiting given the inclinations of the masked "
+                             "planets provided as input, the target star min radius and the max period of your injection grid. Your "
+                             f"maximum period for the current star parameters should be {try_periods[first_index]}")
+
+
         flux0 = lc_build.lc.flux.value
         time = lc_build.lc.time.value
         flux_err = lc_build.lc.flux_err.value
@@ -654,7 +676,8 @@ class MATRIX:
 
     @staticmethod
     def transit_mask_to_df(initial_transits_mask):
-        planets_df = pd.DataFrame(columns=["name", "radius", "period", "radius_err_up", "radius_err_bottom", "mass", "mass_err_up", "mass_err_bottom", "color", "border_color"])
+        planets_df = pd.DataFrame(columns=["name", "radius", "period", "radius_err_up", "radius_err_bottom", "mass", "mass_err_up", "mass_err_bottom", "color", "border_color",
+                                           "inclination", "inclination_err_up", "inclination_err_bottom"])
         if initial_transits_mask is not None:
             for initial_transit_mask in initial_transits_mask:
                 planets_df = pd.concat([planets_df, pd.DataFrame.from_dict({"name": [initial_transit_mask['NAME'] if 'NAME' in initial_transit_mask else ""],
@@ -665,6 +688,9 @@ class MATRIX:
                                                                   "mass": [initial_transit_mask['M'] if 'M' in initial_transit_mask else ""],
                                                                   "mass_err_up": [initial_transit_mask['M_UP_ERR'] if 'M_UP_ERR' in initial_transit_mask else ""],
                                                                   "mass_err_bottom": [initial_transit_mask['M_LOW_ERR'] if 'M_LOW_ERR' in initial_transit_mask else ""],
+                                                                  "inclination": [initial_transit_mask['I'] if 'I' in initial_transit_mask else 90],
+                                                                  "inclination_err_up": [initial_transit_mask['I_UP_ERR'] if 'I_UP_ERR' in initial_transit_mask else 0],
+                                                                  "inclination_err_bottom": [initial_transit_mask['I_LOW_ERR'] if 'I_LOW_ERR' in initial_transit_mask else 0],
                                                                   "color": [initial_transit_mask['COLOR'] if 'COLOR' in initial_transit_mask else ""],
                                                                   "border_color": [initial_transit_mask['BORDER_COLOR'] if 'BORDER_COLOR' in initial_transit_mask else ""]
                                                                             }, orient="columns")],
