@@ -64,7 +64,8 @@ INITIAL_TRANSIT_MASK:
 #  - P: 2.55
 #    D: 91
 #    T0: 1455.32
-#    I: 90
+# Inclination assumed to calculate the maximum period that would cause a transiting event
+SYSTEM_INCLINATION: 90
 # Fixed period for running an initial detrend of a known periodicity in the curve (like fast-rotations or pulsations).
 AUTO_DETREND_PERIOD:
 # The multiplier applied to the AUTO_DETREND found period to be used as window size for an initial detrend.

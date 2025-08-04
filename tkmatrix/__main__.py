@@ -118,6 +118,7 @@ if __name__ == '__main__':
     search_engine = matrix_user_properties["SEARCH_ENGINE"]
     period_match_tolerance = matrix_user_properties["PERIOD_MATCH_TOLERANCE"]
     epoch_match_tolerance = matrix_user_properties["EPOCH_MATCH_TOLERANCE"]
+    system_inclination = matrix_user_properties["SYSTEM_INCLINATION"]
     if cache_dir is None:
         cache_dir = os.path.expanduser('~') + "/"
     ir = MATRIX(target, matrix_user_properties["SECTORS"], author, args.dir, args.preserve, star_info, file, exptime,
@@ -157,7 +158,8 @@ if __name__ == '__main__':
                            radius_grid=matrix_user_properties['RADIUS_GRID'],
                            period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
                            radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"],
-                           inject_dir=inject_dir)
+                           inject_dir=inject_dir,
+                                                     system_inclination=system_inclination)
     ir.recovery(inject_dir, matrix_user_properties["SNR_THRESHOLD"],
                 matrix_user_properties["DETREND_METHOD"],
                 matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],

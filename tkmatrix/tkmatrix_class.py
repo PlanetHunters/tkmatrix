@@ -278,7 +278,7 @@ class MATRIX:
 
     def inject(self, phases, min_period, max_period, steps_period, min_radius, max_radius,
                steps_radius, period_grid=None, radius_grid=None, period_grid_geom="lin",
-               radius_grid_geom="lin", inject_dir=None):
+               radius_grid_geom="lin", inject_dir=None, system_inclination=90):
         """
         Creates the injection of all the synthetic transiting planet scenarios
 
@@ -324,29 +324,26 @@ class MATRIX:
         rstar_au = self.search_input.rstar.to(u.au).value
         if rstar_au / semimajor_axis_min_period >= 1:
             period_for_rstar = habitability_calculator.au_to_period(self.search_input.mstar.value, rstar_au)
-            raise ValueError(
+            logging.error(
                 "Your minimum period is in a shorter orbit than the star radius. The minimum period for this star should be > " + str(
                     round(period_for_rstar, 2)) + ' days')
-        semimajor_axis_max_period, _, _ = HabitabilityCalculator().calculate_semi_major_axis(max_period,
+            sys.exit(1)
+        habitability_calculator = HabitabilityCalculator()
+        semimajor_axis_max_period, _, _ = habitability_calculator.calculate_semi_major_axis(max_period,
                                                                             max_period / 1000, max_period / 1000,
                                                                             self.search_input.mstar.value, 0.1, 0.1)
-        inclinations = [transit_mask['I'] for transit_mask in self.search_input.initial_transit_mask]
-        inclination_min = LcbuilderHelper.convert_from_to(np.nanmean(inclinations), u.degree, u.rad)
         star_radius_au = LcbuilderHelper.convert_from_to(self.search_input.rstar_min.value, u.R_sun, u.au)
         # Eq 1 from https://ui.adsabs.harvard.edu/abs/2019MNRAS.490.5585J/abstract
-        pesimistic_impact_param = semimajor_axis_max_period * np.cos(inclination_min) / star_radius_au
-        if pesimistic_impact_param > 1:
-            try_periods = np.linspace(min_period, max_period, 1000)
-            impact_params = [HabitabilityCalculator().calculate_semi_major_axis(period,
-                                                                            period / 1000, period / 1000,
-                                                                            self.search_input.mstar.value, 0.1, 0.1)[0] * np.cos(inclination_min) / star_radius_au
-                             for period in try_periods]
-            first_index = np.argwhere(np.array(impact_params) > 1)[0]
-            first_index = first_index - 1 if first_index > 0 else first_index
-            raise ValueError("The pesimistic impact parameter is larger than 1. Therefore, there are some of your"
-                             " scenarios that are not physically transiting given the inclinations of the masked "
-                             "planets provided as input, the target star min radius and the max period of your injection grid. Your "
-                             f"maximum period for the current star parameters should be {try_periods[first_index]}")
+        system_inclination_rad = np.deg2rad(system_inclination)
+        max_semimajor_axis_for_inclination = 1 * star_radius_au / np.cos(system_inclination_rad)
+        max_period_for_inclination = habitability_calculator.au_to_period(self.search_input.mstar.value, max_semimajor_axis_for_inclination)
+        impact_param = semimajor_axis_max_period * np.cos(system_inclination_rad) / star_radius_au
+        if impact_param > 1:
+            logging.error("The pesimistic impact parameter is larger than 1. Therefore, there are some of your"
+                             " scenarios that are not physically transiting given the inclination "
+                             " provided as input, the target star min radius and the max period of your injection grid. Your "
+                             f"maximum period for the current inclination andstar parameters should be {max_period_for_inclination}")
+            sys.exit(1)
 
 
         flux0 = lc_build.lc.flux.value
