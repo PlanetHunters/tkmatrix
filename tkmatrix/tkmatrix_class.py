@@ -24,6 +24,7 @@ import astropy.units as u
 import os
 import re
 import pandas as pd
+from scipy.ndimage import uniform_filter1d
 from scipy.stats import binned_statistic
 
 from tkmatrix.custom_algorithms.BlsCustomSearchAlgorithm import BlsCustomSearchAlgorithm
@@ -34,6 +35,7 @@ from tkmatrix.rv import RvFitter
 
 @dataclasses.dataclass
 class SearchInput:
+    """Configuration container for all MATRIX search parameters."""
     target: str
     sectors: list[int] | str
     author: str
@@ -111,6 +113,71 @@ class MATRIX:
                  oscillation_ws_percent=0.01, oscillation_min_period=0.002, oscillation_max_period=0.2,
                  cores=multiprocessing.cpu_count() - 1, search_engine='cpu'
                  ):
+        """Initialize the MATRIX injection-recovery engine.
+
+        Parameters
+        ----------
+        target : str
+            Target star identifier (e.g. TIC or KIC ID).
+        sectors : list of int or str
+            TESS sectors to use, or ``'all'``.
+        author : str
+            Light curve author (e.g. SPOC, TESS-SPOC).
+        dir : str
+            Working directory for output files.
+        preserve : bool, optional
+            If True, keep injected CSV files after recovery. Default False.
+        star_info : StarInfo, optional
+            Pre-configured star parameters. If None, retrieved from catalog.
+        file : str, optional
+            Path to a local light curve file. If None, data is downloaded.
+        exposure_time : int, optional
+            Exposure time in seconds.
+        initial_mask : list, optional
+            Initial time or cadence mask to exclude from the light curve.
+        initial_transit_mask : list of dict, optional
+            Known transiting planets to mask in the light curve.
+        eleanor_corr_flux : str, optional
+            Eleanor flux correction type. Default ``'pca_flux'``.
+        outliers_sigma : float, optional
+            Sigma-clipping threshold for outlier removal.
+        high_rms_enabled : bool, optional
+            Enable high-RMS outlier masking. Default True.
+        high_rms_threshold : float, optional
+            RMS threshold factor for outlier bins. Default 2.5.
+        high_rms_bin_hours : float, optional
+            Bin size in hours for RMS calculation. Default 4.
+        smooth_enabled : bool, optional
+            Enable light curve smoothing. Default False.
+        auto_detrend_enabled : bool, optional
+            Enable automatic detrending. Default False.
+        auto_detrend_method : str, optional
+            Detrending method (``'cosine'``, ``'biweight'``, etc.). Default ``'cosine'``.
+        auto_detrend_ratio : float, optional
+            Detrending window ratio. Default 0.25.
+        auto_detrend_period : float, optional
+            Fixed period for detrending. If None, auto-detected.
+        prepare_algorithm : callable, optional
+            Custom light curve preparation algorithm.
+        cache_dir : str, optional
+            Directory for cached downloads. Default ``~/``.
+        oscillation_reduction : bool, optional
+            Enable stellar oscillation reduction. Default False.
+        oscillation_min_snr : float, optional
+            Minimum SNR for oscillation filtering. Default 4.
+        oscillation_amplitude_threshold : float, optional
+            Amplitude threshold for oscillation removal. Default 0.001.
+        oscillation_ws_percent : float, optional
+            Window size as fraction of data for oscillation analysis. Default 0.01.
+        oscillation_min_period : float, optional
+            Minimum oscillation period in days. Default 0.002.
+        oscillation_max_period : float, optional
+            Maximum oscillation period in days. Default 0.2.
+        cores : int, optional
+            Number of CPU cores to use. Default ``cpu_count() - 1``.
+        search_engine : str, optional
+            Search engine backend (``'cpu'`` or ``'gpu'``). Default ``'cpu'``.
+        """
         assert target is not None and isinstance(target, str)
         assert sectors is not None and (sectors == 'all' or isinstance(sectors, list))
         assert exposure_time is not None and isinstance(exposure_time, (int, float))
@@ -123,7 +190,26 @@ class MATRIX:
 
     @staticmethod
     def retrieve_object_data(search_input: SearchInput, inject_dir=None):
-        lcbuilder_object = LcBuilder()
+        """Download light curve data, build object info, and populate star parameters.
+
+        Parameters
+        ----------
+        search_input : SearchInput
+            Search configuration with target, sectors, author, exposure time, etc.
+        inject_dir : str, optional
+            Injection directory. If None, one is created via :meth:`build_inject_dir`.
+
+        Returns
+        -------
+        inject_dir : str
+            Path to the injection directory.
+        object_info : ObjectInfo
+            Built object info from lcbuilder.
+        lc_build : LightCurveBuild
+            Built light curve with stellar parameters.
+        search_input : SearchInput
+            Copy of input with star parameters (ab, rstar, mstar, etc.) populated.
+        """
         object_info = lcbuilder_object.build_object_info(search_input.target, [search_input.author], search_input.sectors,
                                                          search_input.file, [search_input.exposure_time],
                                                          None, None, search_input.star_info, None,
@@ -157,7 +243,24 @@ class MATRIX:
 
     @staticmethod
     def retrieve_object_data_for_recovery(inject_dir, recovery_file, search_input: SearchInput):
-        MATRIX.setup_logging(inject_dir)
+        """Rebuild light curve data for a single injected CSV during recovery.
+
+        Parameters
+        ----------
+        inject_dir : str
+            Injection directory path.
+        recovery_file : str
+            Path to the injected CSV file to recover.
+        search_input : SearchInput
+            Search configuration used during injection.
+
+        Returns
+        -------
+        lc_build : LightCurveBuild
+            Built light curve ready for search.
+        object_info : ObjectInfo
+            Built object info from lcbuilder.
+        """
         lcbuilder_object = LcBuilder()
         object_info = lcbuilder_object.build_object_info("", None, None, recovery_file, [search_input.exposure_time],
                                                        search_input.initial_mask, search_input.initial_transit_mask,
@@ -181,7 +284,23 @@ class MATRIX:
 
     @staticmethod
     def build_inject_dir(dir, object_info):
-        inject_dir = dir + "/" + object_info.mission_id().replace(" ", "") + "_ir/"
+        """Create a unique injection directory under the working directory.
+
+        Constructs the directory name from the mission ID, appending ``_ir_<n>``
+        if it already exists. Creates the directory and sets up logging.
+
+        Parameters
+        ----------
+        dir : str
+            Base working directory.
+        object_info : ObjectInfo
+            Object info used to derive the mission identifier.
+
+        Returns
+        -------
+        str
+            Path to the newly created injection directory.
+        """
         index = 0
         while os.path.exists(inject_dir) or os.path.isdir(inject_dir):
             inject_dir = dir + "/" + object_info.mission_id().replace(" ", "") + "_ir_" + str(index) + "/"
@@ -192,7 +311,16 @@ class MATRIX:
 
     @staticmethod
     def setup_logging(inject_dir):
-        file_dir = inject_dir + "matrix.log"
+        """Configure logging to write to ``matrix.log`` and stdout.
+
+        Clears any existing handlers, then adds a ``StreamHandler`` for stdout
+        and a ``FileHandler`` writing to ``inject_dir/matrix.log``.
+
+        Parameters
+        ----------
+        inject_dir : str
+            Directory where the log file will be created.
+        """
         formatter = logging.Formatter('%(message)s')
         logger = logging.getLogger()
         while len(logger.handlers) > 0:
@@ -362,7 +490,30 @@ class MATRIX:
 
     def recovery_rv_periods(self, filename, max_period_search, rv_masks=None, oversampling=1,
                             cores=os.cpu_count() - 1):
-        inject_dir = MATRIX.retrieve_object_data(self.search_input)
+        """Run RV period recovery on the original RV data file.
+
+        Performs Lomb-Scargle periodogram analysis on the RV data, masks known
+        planet signals, and generates a 5-panel diagnostic plot saved as
+        ``rv_thresholds.png``.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the RV CSV file (must contain columns: bjd, rv, rv_err).
+        max_period_search : float
+            Maximum period to search in days.
+        rv_masks : list, optional
+            Period ranges to mask from the periodogram.
+        oversampling : float, optional
+            Oversampling factor for the period grid. Default 1.
+        cores : int, optional
+            Number of CPU cores. Default ``os.cpu_count() - 1``.
+
+        Returns
+        -------
+        str
+            Path to the injection directory containing the diagnostic plot.
+        """
         if rv_masks is None:
             rv_masks = {}
         rv_df = pd.read_csv(filename)
@@ -412,7 +563,26 @@ class MATRIX:
         return inject_dir
 
     def recovery_rv(self, inject_dir, rv_masks=None, snr_threshold=5, run_limit=3, max_period_search=25, oversampling=3):
-        assert inject_dir is not None and isinstance(inject_dir, str)
+        """Recover injected RV planet signals from all CSV files in the injection directory.
+
+        Iterates over injected RV CSV files, runs :meth:`RvFitter.recover_signal`
+        on each, and writes the combined results to ``a_rv_report.csv``.
+
+        Parameters
+        ----------
+        inject_dir : str
+            Directory containing the injected RV CSV files.
+        rv_masks : list, optional
+            Period ranges to mask from the RV search.
+        snr_threshold : float, optional
+            SNR threshold for signal detection. Default 5.
+        run_limit : int, optional
+            Maximum TLS iterations per light curve. Default 3.
+        max_period_search : float, optional
+            Maximum period to search in days. Default 25.
+        oversampling : float, optional
+            Oversampling factor for the period grid. Default 3.
+        """
         reports_df = pd.DataFrame(columns=['period', 'mass', 'epoch', 'period_found', 'epoch_found', 'mass_found',
                                            'found', 'snr', 'sde', 'run'])
         for file in sorted(os.listdir(inject_dir)):
@@ -585,6 +755,19 @@ class MATRIX:
 
     @staticmethod
     def recover_period(search_input: SearchInput, lock):
+        """Recover a single injected transit from an in-memory CSV file (multiprocessing worker).
+
+        Reads the injected light curve file, optionally checks the search cache,
+        and delegates to :meth:`search`. Results are appended to the shared
+        ``a_tls_report.csv`` and ``a_tls_report_per_run.csv`` using the provided lock.
+
+        Parameters
+        ----------
+        search_input : SearchInput
+            Search configuration including period, radius, epoch, and inject file path.
+        lock : multiprocessing.Lock
+            Lock for thread-safe writing to the shared report CSVs.
+        """
         try:
             df = pd.read_csv(search_input.inject_file_dir, float_precision='round_trip', sep=',',
                              usecols=['time', 'flux', 'flux_err'])
@@ -673,6 +856,23 @@ class MATRIX:
 
     @staticmethod
     def transit_mask_to_df(initial_transits_mask):
+        """Convert a list of transit mask dicts into a pandas DataFrame.
+
+        Each dict may contain keys: ``NAME``, ``P``, ``R``, ``R_UP_ERR``,
+        ``R_LOW_ERR``, ``M``, ``M_UP_ERR``, ``M_LOW_ERR``, ``I``, ``I_UP_ERR``,
+        ``I_LOW_ERR``, ``COLOR``, ``BORDER_COLOR``.
+
+        Parameters
+        ----------
+        initial_transits_mask : list of dict or None
+            Known planet transit masks.
+
+        Returns
+        -------
+        pandas.DataFrame
+            DataFrame with columns for name, radius, period, mass, inclination,
+            their errors, and display colors.
+        """
         planets_df = pd.DataFrame(columns=["name", "radius", "period", "radius_err_up", "radius_err_bottom", "mass", "mass_err_up", "mass_err_bottom", "color", "border_color",
                                            "inclination", "inclination_err_up", "inclination_err_bottom"])
         if initial_transits_mask is not None:
@@ -721,15 +921,23 @@ class MATRIX:
         period_grid = df['period'].unique()
         radius_grid = df[column].unique()
         bins = [period_grid, radius_grid]
+        # period_grid_means, edges, binnum = binned_statistic(np.arange(0, len(period_grid)), period_grid,
+        #                                                     statistic='mean', bins=len(period_grid) // binning)
+        # radius_grid_means, edges, binnum = binned_statistic(np.arange(0, len(radius_grid)), radius_grid,
+        #                                                     statistic='mean', bins=len(radius_grid) // binning)
+        bins = [period_grid, radius_grid]
         h1, x, y = np.histogram2d(df['period'][df['found'] == 1], df[column][df['found'] == 1], bins=bins)
         h2, x, y = np.histogram2d(df['period'][df['found'] == 0], df[column][df['found'] == 0], bins=bins)
-        normed_hist = (100. * h1 / (h1 + h2))
+        tot = h1 + h2
+        h1_s = uniform_filter1d(h1.astype(float), axis=0, size=binning, mode="nearest")
+        tot_s = uniform_filter1d(tot.astype(float), axis=0, size=binning, mode="nearest")
+        normed_hist = 100.0 * h1_s / tot_s
         fig, ax = plt.subplots(figsize=(2.7 * 5, 5))
         im = plt.imshow(normed_hist.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), interpolation='none',
                         aspect='auto', cmap='magma', vmin=0, vmax=100, rasterized=True)
         cbar = plt.colorbar(im)
-        cbar.set_label(label='Recovery rate (%)', size=16)
-        cbar.ax.tick_params(labelsize=14)
+        cbar.set_label(label='Recovery rate (%)', size=22)
+        cbar.ax.tick_params(labelsize=18)
 
         # Regions
         x_centers = 0.5 * (x[:-1] + x[1:])
@@ -738,16 +946,16 @@ class MATRIX:
         contour_levels = [50]
         contour_levels1 = [5]
         contour_levels2 = [95]
-        cs = ax.contour(Xc, Yc, normed_hist.T, levels=contour_levels, colors='white', linewidths=1.0, linestyles='--')
+        cs = ax.contour(Xc, Yc, normed_hist.T, levels=contour_levels, colors='white', linewidths=2.0, linestyles='--')
         cs1 = ax.contour(Xc, Yc, normed_hist.T, levels=contour_levels1, colors='white', linewidths=2.0, linestyles='-')
         cs2 = ax.contour(Xc, Yc, normed_hist.T, levels=contour_levels2, colors='cornflowerblue', linewidths=2.0,
                          linestyles='-')
-        ax.clabel(cs2, inline=True, fontsize=15, fmt='%d%%')
-        ax.clabel(cs1, inline=True, fontsize=15, fmt='%d%%')
+        ax.clabel(cs2, inline=True, fontsize=20, fmt='%d%%')
+        ax.clabel(cs1, inline=True, fontsize=20, fmt='%d%%')
 
-        plt.xlabel('Injected period (days)', fontsize=18)
-        plt.ylabel(r'Injected ' + ('radius' if not is_rv else 'mass') + ' (' + column_units + '$_\oplus$)', fontsize=18)
-        ax.set_title(object_id + " - I&R (" + str(phases) + " " + phases_str + ")", fontsize=24)
+        plt.xlabel('Injected period (days)', fontsize=22)
+        plt.ylabel(r'Injected ' + ('radius' if not is_rv else 'mass') + ' (' + column_units + '$_\oplus$)', fontsize=22)
+        #ax.set_title(object_id + " - I&R (" + str(phases) + " " + phases_str + ")", fontsize=24)
         if xticks is not None:
             plt.xticks(xticks)
         else:
@@ -757,11 +965,11 @@ class MATRIX:
             ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
         if yticks is not None:
             plt.xticks(yticks)
-        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.tick_params(axis='both', which='major', labelsize=22)
         if planets_df is not None:
             for index, row in planets_df.iterrows():
                 color = row['color'] if 'color' in row and row['color'] != '' else 'firebrick'
-                border_color = row['border_color'] if 'border_color' and row['border_color'] != '' in row else 'black'
+                border_color = row['border_color'] if 'border_color' in row and row['border_color'] != '' else 'black'
                 ax.errorbar([row['period']], [row[column]],
                             yerr=[np.full(1, row[column + '_err_bottom']), np.full(1, row[column + '_err_up'])],
                             fmt='o', color=color, mec=border_color, markersize=12, capsize=5)
@@ -828,9 +1036,88 @@ class MATRIX:
                period, min_period, max_period, min_snr, transit_template, detrend_method, ws, transits_min_count,
                run_limit, custom_search_algorithm, oversampling, signal_selection_mode, star_info, cores, search_engine,
                period_match_tolerance, epoch_match_tolerance):
+        """Dispatch transit search to the appropriate algorithm.
+
+        Routes to a user-provided custom algorithm, the built-in BLS periodogram
+        search, or the default TLS search depending on configuration.
+
+        Parameters
+        ----------
+        time : array-like
+            Time array in BJD.
+        flux : array-like
+            Flux array.
+        rstar : float
+            Stellar radius in solar radii.
+        rstar_min : float
+            Stellar radius lower error.
+        rstar_max : float
+            Stellar radius upper error.
+        mass : float
+            Stellar mass in solar masses.
+        mstar_min : float
+            Stellar mass lower error.
+        mstar_max : float
+            Stellar mass upper error.
+        ab : tuple of float
+            Limb-darkening coefficients (a, b).
+        epoch : float
+            Injected epoch (T0) for signal matching.
+        period : float
+            Injected period for signal matching.
+        min_period : float
+            Minimum search period in days.
+        max_period : float
+            Maximum search period in days.
+        min_snr : float
+            SNR threshold for signal detection.
+        transit_template : str
+            Transit template shape (``'default'`` for TLS, ``'box'`` for BLS).
+        detrend_method : str
+            Detrending method (``'biweight'`` or ``'gp'``).
+        ws : float
+            Window size for detrending.
+        transits_min_count : int
+            Minimum number of transits required.
+        run_limit : int
+            Maximum number of search iterations.
+        custom_search_algorithm : CustomSearchAlgorithm or None
+            User-provided custom search algorithm.
+        oversampling : float
+            Period grid oversampling factor.
+        signal_selection_mode : str
+            Mode for matching detected signals (``'period-epoch'`` or ``'period'``).
+        star_info : StarInfo
+            Star parameters.
+        cores : int
+            Number of CPU cores.
+        search_engine : str
+            Search backend (``'cpu'`` or ``'gpu'``).
+        period_match_tolerance : float
+            Fractional tolerance for period matching.
+        epoch_match_tolerance : float
+            Tolerance in days for epoch matching.
+
+        Returns
+        -------
+        found_signals : list of bool
+            Whether the injected signal was found at each iteration.
+        snrs : list of float
+            SNR values at each iteration.
+        sdes : list of float
+            SDE values at each iteration.
+        runs : list of int
+            Iteration indices.
+        durations : list of float
+            Recovered transit durations at each iteration.
+        periods : list of float
+            Recovered periods at each iteration.
+        t0s : list of float
+            Recovered epochs (T0) at each iteration.
+        """
         tls_period_grid, oversampling = LcbuilderHelper.calculate_period_grid(time, min_period, max_period,
-                                                                              oversampling, star_info,
-                                                                              transits_min_count)
+                                                                               oversampling, star_info,
+                                                                               transits_min_count)
         if custom_search_algorithm is not None:
             return custom_search_algorithm.search(time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                                                 ab, epoch, period, min_period, max_period, min_snr, cores,
@@ -856,7 +1143,83 @@ class MATRIX:
                      period, min_period, max_period, min_snr, cores, transit_template, detrend_method, ws,
                      transits_min_count, run_limit, tls_period_grid, signal_selection_mode, search_engine,
                    period_match_tolerance=0.01, epoch_match_tolerance=0.01):
-        snr = 1e12
+        """Perform iterative Transit Least Squares (TLS) search with signal removal.
+
+        Detrends the light curve if needed, runs TLS, checks whether the found
+        signal matches the injected period/epoch (harmonic or multiple-of),
+        removes in-transit points, and repeats until the SNR falls below the
+        threshold or the run limit is reached.
+
+        Parameters
+        ----------
+        time : array-like
+            Time array in BJD.
+        flux : array-like
+            Flux array.
+        rstar : float
+            Stellar radius in solar radii.
+        rstar_min : float
+            Stellar radius lower error.
+        rstar_max : float
+            Stellar radius upper error.
+        mass : float
+            Stellar mass in solar masses.
+        mstar_min : float
+            Stellar mass lower error.
+        mstar_max : float
+            Stellar mass upper error.
+        ab : tuple of float
+            Limb-darkening coefficients (a, b).
+        epoch : float
+            Injected epoch (T0) for signal matching.
+        period : float
+            Injected period for signal matching.
+        min_period : float
+            Minimum search period in days.
+        max_period : float
+            Maximum search period in days.
+        min_snr : float
+            SNR threshold for signal detection.
+        cores : int
+            Number of CPU cores.
+        transit_template : str
+            Transit template shape (``'default'`` or ``'box'``).
+        detrend_method : str
+            Detrending method (``'biweight'`` or ``'gp'``).
+        ws : float
+            Window size for detrending.
+        transits_min_count : int
+            Minimum number of transits required.
+        run_limit : int
+            Maximum number of search iterations.
+        tls_period_grid : array-like
+            Pre-computed period grid for TLS.
+        signal_selection_mode : str
+            Mode for matching detected signals (``'period-epoch'`` or ``'period'``).
+        search_engine : str
+            Search backend (``'cpu'``, ``'gpu'``, or ``'gpu_approximate'``).
+        period_match_tolerance : float, optional
+            Fractional tolerance for period matching. Default 0.01.
+        epoch_match_tolerance : float, optional
+            Tolerance in days for epoch matching. Default 0.01.
+
+        Returns
+        -------
+        found_signals : list of bool
+            Whether the injected signal was found at each iteration.
+        snrs : list of float
+            SNR values at each iteration.
+        sdes : list of float
+            SDE values at each iteration.
+        runs : list of int
+            Iteration indices.
+        durations : list of float
+            Recovered transit durations at each iteration.
+        periods : list of float
+            Recovered periods at each iteration.
+        t0s : list of float
+            Recovered epochs (T0) at each iteration.
+        """
         found_signal = False
         time, flux = cleaned_array(time, flux)
         run = 0

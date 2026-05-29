@@ -17,6 +17,23 @@ class RecoverPeriodInput:
     Used as input for the RV recovery stage
     """
     def __init__(self, time, rv_data, rv_err, period, msin=None, star_mass=None):
+        """Initialise recovery period input.
+
+        Parameters
+        ----------
+        time : numpy.ndarray
+            Time series array.
+        rv_data : numpy.ndarray
+            Radial velocity data.
+        rv_err : numpy.ndarray
+            Radial velocity error values.
+        period : float
+            Orbital period to test, in days.
+        msin : float or None, optional
+            Minimum mass times sin(i). Defaults to None.
+        star_mass : float or None, optional
+            Star mass. Defaults to None.
+        """
         self.time = time
         self.rv_data = rv_data
         self.rv_err = rv_err
@@ -28,6 +45,7 @@ class RecoverPeriodInput:
 class RvFitter:
     """Main class used for RV injection and recovery"""
     def __init__(self) -> None:
+        """Initialise the RV fitter."""
         super().__init__()
 
     @staticmethod
@@ -178,6 +196,44 @@ class RvFitter:
     @staticmethod
     def recover_signal(rv_df, period, msin, omega, rv_masks, star_mass, period_grid_geom='lin', steps_period=None,
                        period_min=0.5, max_period=None, min_snr=5, min_sde=5, max_runs=5, cpus=os.cpu_count() - 1):
+        """Iteratively recover a known injected RV signal.
+
+        Parameters
+        ----------
+        rv_df : pandas.DataFrame
+            DataFrame with columns 'bjd', 'rv', 'rv_err'.
+        period : float
+            Known injected period.
+        msin : float
+            Known minimum mass times sin(i).
+        omega : float
+            Known omega value.
+        rv_masks : list
+            List of RV masks to apply before recovery.
+        star_mass : float
+            Star mass.
+        period_grid_geom : str, optional
+            Period grid geometry, 'lin' or 'log'. Defaults to 'lin'.
+        steps_period : int or None, optional
+            Number of period steps. Defaults to None.
+        period_min : float, optional
+            Minimum period to search. Defaults to 0.5.
+        max_period : float or None, optional
+            Maximum period to search. Defaults to None.
+        min_snr : float, optional
+            Minimum SNR threshold to stop. Defaults to 5.
+        min_sde : float, optional
+            Minimum SDE threshold to stop. Defaults to 5.
+        max_runs : int, optional
+            Maximum number of recovery runs. Defaults to 5.
+        cpus : int, optional
+            Number of CPUs. Defaults to os.cpu_count() - 1.
+
+        Returns
+        -------
+        tuple
+            (found, run, snr, SDE, signal_period, signal_omega, signal_msin)
+        """
         df = rv_df.copy()
         sde = numpy.inf
         snr = numpy.inf
@@ -225,6 +281,18 @@ class RvFitter:
 
     @staticmethod
     def recover_period(input: RecoverPeriodInput):
+        """Fit a sinusoidal RV model for a single period.
+
+        Parameters
+        ----------
+        input : RecoverPeriodInput
+            Input data containing time, RV data, errors, and period.
+
+        Returns
+        -------
+        tuple
+            (period, k, omega, k_err, omega_err, least_squares)
+        """
         k = 0
         k_err = 0
         omega = 0
@@ -281,6 +349,33 @@ class RvFitter:
     @staticmethod
     def recover_periods(rv_df, period_grid_geom='lin', steps_period=None, period_min=0.5, max_period=None,
                         rv_masks=None, star_mass=None, cpus=os.cpu_count() - 1):
+        """Recover RV signals across a grid of periods.
+
+        Parameters
+        ----------
+        rv_df : pandas.DataFrame
+            DataFrame with columns 'bjd', 'rv', 'rv_err'.
+        period_grid_geom : str, optional
+            Period grid geometry, 'lin' or 'log'. Defaults to 'lin'.
+        steps_period : int or None, optional
+            Number of period steps. Defaults to None.
+        period_min : float, optional
+            Minimum period to search. Defaults to 0.5.
+        max_period : float or None, optional
+            Maximum period to search. Defaults to None.
+        rv_masks : list or None, optional
+            List of RV masks to apply. Defaults to None.
+        star_mass : float or None, optional
+            Star mass. Defaults to None.
+        cpus : int, optional
+            Number of CPUs. Defaults to os.cpu_count() - 1.
+
+        Returns
+        -------
+        tuple
+            (rv_data, period_grid, k_grid, omega_grid, msin_grid,
+             least_squares_grid, argmax_sde, power, snr, SDE)
+        """
         if rv_masks is None:
             rv_masks = []
         if steps_period is None:
@@ -333,6 +428,33 @@ class RvFitter:
     @staticmethod
     def recover_strongest_signal(rv_df, period_grid_geom='lin', steps_period=None, period_min=0.5, max_period=None,
                         rv_masks=None, star_mass=None, cpus=os.cpu_count() - 1):
+        """Recover the strongest RV signal using a periodogram.
+
+        Parameters
+        ----------
+        rv_df : pandas.DataFrame
+            DataFrame with columns 'bjd', 'rv', 'rv_err'.
+        period_grid_geom : str, optional
+            Period grid geometry, 'lin' or 'log'. Defaults to 'lin'.
+        steps_period : int or None, optional
+            Number of period steps. Defaults to None.
+        period_min : float, optional
+            Minimum period to search. Defaults to 0.5.
+        max_period : float or None, optional
+            Maximum period to search. Defaults to None.
+        rv_masks : list or None, optional
+            List of RV masks to apply. Defaults to None.
+        star_mass : float or None, optional
+            Star mass. Defaults to None.
+        cpus : int, optional
+            Number of CPUs. Defaults to os.cpu_count() - 1.
+
+        Returns
+        -------
+        tuple
+            (rv_data, strongest_period, k, omega, msin, least_squares,
+             argmax_sde, power, snr, sde)
+        """
         if rv_masks is None:
             rv_masks = []
         if steps_period is None:
@@ -371,6 +493,22 @@ class RvFitter:
 
     @staticmethod
     def mask_signals(rv_df, rv_masks, star_mass):
+        """Subtract RV signals specified by masks from the data.
+
+        Parameters
+        ----------
+        rv_df : pandas.DataFrame
+            DataFrame with columns 'bjd', 'rv', 'rv_err'.
+        rv_masks : list
+            List of dicts with keys 'P' (period) and optionally 'M' (mass).
+        star_mass : float
+            Star mass.
+
+        Returns
+        -------
+        numpy.ndarray
+            RV data with masked signals subtracted.
+        """
         time = rv_df["bjd"].to_numpy()
         rv_data = rv_df["rv"].to_numpy()
         rv_err = rv_df["rv_err"].to_numpy()

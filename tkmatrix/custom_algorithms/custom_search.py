@@ -6,6 +6,7 @@ class CustomSearchAlgorithm(ABC):
     Custom search algorithm to be implemented if injecting a custom search class in the properties file
     """
     def __init__(self):
+        """Initialise the custom search algorithm."""
         pass
 
     @abstractmethod

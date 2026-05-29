@@ -10,6 +10,29 @@ class InjectRvModel:
     Used to inject a Radial Velocity signal
     """
     def __init__(self, inject_dir, time, rv, rv_err, rstar, mstar, t0, period, mplanet):
+        """Initialise a Radial Velocity injection model.
+
+        Parameters
+        ----------
+        inject_dir : str
+            Directory to write the injected RV curve CSV.
+        time : numpy.ndarray
+            Time series array.
+        rv : numpy.ndarray
+            Radial velocity data.
+        rv_err : numpy.ndarray
+            Radial velocity error values.
+        rstar : astropy.units.quantity.Quantity
+            Star radius.
+        mstar : astropy.units.quantity.Quantity
+            Star mass.
+        t0 : float
+            Epoch of the injected signal.
+        period : float
+            Orbital period of the injected planet, in days.
+        mplanet : astropy.units.quantity.Quantity
+            Planet mass.
+        """
         self.inject_dir = inject_dir
         self.time = time
         self.rv = rv

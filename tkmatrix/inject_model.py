@@ -14,6 +14,33 @@ class InjectModel:
     Class used to create a synthetic light curve.
     """
     def __init__(self, inject_dir, time, flux, flux_err, rstar, mstar, t0, period, rplanet, exposure_time, ab):
+        """Initialise an injection model for a synthetic light curve.
+
+        Parameters
+        ----------
+        inject_dir : str
+            Directory to write the injected curve CSV.
+        time : numpy.ndarray
+            Time series array.
+        flux : numpy.ndarray
+            Flux values corresponding to the time series.
+        flux_err : numpy.ndarray
+            Flux error values.
+        rstar : astropy.units.quantity.Quantity
+            Star radius.
+        mstar : astropy.units.quantity.Quantity
+            Star mass.
+        t0 : float
+            Epoch of the injected transit.
+        period : float
+            Orbital period of the injected planet, in days.
+        rplanet : astropy.units.quantity.Quantity
+            Planet radius.
+        exposure_time : float
+            Exposure time of the observations.
+        ab : tuple
+            Quadratic limb darkening coefficients.
+        """
         self.inject_dir = inject_dir
         self.time = time
         self.flux = flux

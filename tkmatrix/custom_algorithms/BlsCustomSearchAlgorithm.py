@@ -16,12 +16,71 @@ class BlsCustomSearchAlgorithm(CustomSearchAlgorithm):
     Custom search algorithm to be implemented if injecting a custom search class in the properties file
     """
     def __init__(self):
+        """Initialise the BLS custom search algorithm."""
         super().__init__()
 
     def search(self, time, flux, rstar, rstar_min, rstar_max, mass, mstar_min, mstar_max,
                ab, epoch, period, min_period, max_period, min_snr, cores, transit_template, detrend_method, ws,
                transits_min_count, signal_selection_mode, run_limit, oversampling, period_match_tolerance,
                epoch_match_tolerance):
+        """Search for a transit signal using the BLS algorithm.
+
+        Parameters
+        ----------
+        time : numpy.ndarray
+            Time series array.
+        flux : numpy.ndarray
+            Flux values corresponding to the time series.
+        rstar : float
+            Star radius.
+        rstar_min : float
+            Minimum star radius value.
+        rstar_max : float
+            Maximum star radius value.
+        mass : float
+            Star mass.
+        mstar_min : float
+            Minimum star mass value.
+        mstar_max : float
+            Maximum star mass value.
+        ab : tuple
+            Quadratic limb darkening coefficients.
+        epoch : float
+            Epoch (t0) of the signal to be spotted.
+        period : float
+            Period of the signal to be spotted.
+        min_period : float
+            Minimum period for the period grid.
+        max_period : float
+            Maximum period for the period grid.
+        min_snr : float
+            SNR threshold to stop searching.
+        cores : int
+            Number of processes for parallel computation.
+        transit_template : str
+            Transit template to use for the search.
+        detrend_method : str
+            Detrending method.
+        ws : float
+            Window size for detrending.
+        transits_min_count : int
+            Minimum number of transits for a valid signal.
+        signal_selection_mode : str
+            Signal selection mode (e.g. 'period-epoch').
+        run_limit : int
+            Maximum number of runs.
+        oversampling : float
+            Period grid oversampling factor.
+        period_match_tolerance : float
+            Tolerance for period matching.
+        epoch_match_tolerance : float
+            Tolerance for epoch matching.
+
+        Returns
+        -------
+        tuple
+            (found_signals, snrs, sdes, runs, durations, periods, t0s)
+        """
 
         snr = 1e12
         found_signal = False

@@ -12,6 +12,18 @@ from pathlib import Path
 
 
 def load_module(module_path):
+    """Dynamically load a Python module from a file path.
+
+    Parameters
+    ----------
+    module_path : str
+        Path to the Python module file.
+
+    Returns
+    -------
+    module
+        The loaded module object.
+    """
     spec = importlib.util.spec_from_file_location("customs", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -20,6 +32,19 @@ def load_module(module_path):
     return module
 
 def extract_custom_class(module_path):
+    """Load and instantiate a custom class from a module file path.
+
+    Parameters
+    ----------
+    module_path : str or None
+        Path to the Python module file containing the custom class.
+        If None, returns None.
+
+    Returns
+    -------
+    object or None
+        An instance of the custom class, or None if module_path is None.
+    """
     class_module = None
     if module_path is not None:
         class_module = load_module(module_path)
@@ -33,6 +58,13 @@ def extract_custom_class(module_path):
 # Check the variable CPUS from user-properties.
 # If the value is greater than the real cpus number, we replace it.
 def get_cpus():
+    """Return the number of CPUs to use, capped at the system CPU count.
+
+    Returns
+    -------
+    int
+        The number of CPUs, bounded by the system's available CPU count.
+    """
     user_properties_cpus = matrix_user_properties["CPUS"]
     cpu_count = os.cpu_count()
     if user_properties_cpus > cpu_count:
@@ -44,6 +76,20 @@ def get_cpus():
     return final_cpus
 
 def get_star_info(properties, id):
+    """Build a StarInfo object from user properties.
+
+    Parameters
+    ----------
+    properties : dict
+        Dictionary of user properties containing star parameters.
+    id : str
+        The target identifier (e.g. TIC ID).
+
+    Returns
+    -------
+    StarInfo or None
+        Configured StarInfo object, or None if no star properties are provided.
+    """
     input_star_info = None
     if properties["STAR"] is not None:
         if id in properties["STAR"] and properties["STAR"][id] is not None: #TODO to support old STAR -> TIC XXXX -> properties parameters
