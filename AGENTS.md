@@ -2,6 +2,10 @@
 
 > Agent-facing guide for the `tkmatrix` (MATRIX ToolKit) project.
 
+## Before Making Changes
+
+Always understand the user's question or command fully before writing any code. If there is any ambiguity or doubt about what to change, ask clarifying questions. Only make edits when the action is clear and unambiguous. Do not assume intent — confirm it.
+
 ## Project Intent
 
 **tkmatrix** (MATRIX ToolKit) is an injection-recovery software for exoplanet research. It creates grids of synthetic transiting exoplanet signals (varying periods, radii, and epochs) injected into real light curves, then attempts to recover them using transit search algorithms (TLS, BLS, etc.). A key feature is **multi-phase analysis**, where multiple epochs are tested for each period-radius combination, improving accuracy over traditional 2D approaches.
