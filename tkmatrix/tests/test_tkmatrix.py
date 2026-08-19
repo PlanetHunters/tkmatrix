@@ -34,7 +34,9 @@ class TestsMatrix(unittest.TestCase):
             self.assertAlmostEqual(0.284, matrix.search_input.rstar_max.value, 3)
             self.assertEqual(".", matrix.search_input.dir)
             matrix.recovery(inject_dir, 5, detrend_ws=0, oversampling=0.1)
-            self.assertEqual(10, len(os.listdir(inject_dir)))
+            result_files = set(os.listdir(inject_dir))
+            self.assertTrue({"a_tls_report.csv", "a_tls_report_per_run.csv", "matrix.log"}.issubset(result_files))
+            self.assertFalse(any(file.startswith("P") and file.endswith(".csv") for file in result_files))
         finally:
             if inject_dir is not None:
                 shutil.rmtree(inject_dir, ignore_errors=True)

@@ -210,6 +210,7 @@ class MATRIX:
         search_input : SearchInput
             Copy of input with star parameters (ab, rstar, mstar, etc.) populated.
         """
+        lcbuilder_object = LcBuilder()
         object_info = lcbuilder_object.build_object_info(search_input.target, [search_input.author], search_input.sectors,
                                                          search_input.file, [search_input.exposure_time],
                                                          None, None, search_input.star_info, None,
@@ -224,7 +225,6 @@ class MATRIX:
                                                          search_input.oscillation_max_period, binning=0)
         if inject_dir is None:
             inject_dir = MATRIX.build_inject_dir(search_input.dir, object_info)
-        lcbuilder_object = LcBuilder()
         lc_build = lcbuilder_object.build(object_info, inject_dir, search_input.cache_dir, search_input.cores)
         search_input_result = copy.deepcopy(search_input)
         if search_input_result.star_info is None:
@@ -302,9 +302,10 @@ class MATRIX:
             Path to the newly created injection directory.
         """
         index = 0
+        inject_dir = dir + "/" + object_info.mission_id().replace(" ", "") + "_ir_" + str(index) + "/"
         while os.path.exists(inject_dir) or os.path.isdir(inject_dir):
-            inject_dir = dir + "/" + object_info.mission_id().replace(" ", "") + "_ir_" + str(index) + "/"
             index = index + 1
+            inject_dir = dir + "/" + object_info.mission_id().replace(" ", "") + "_ir_" + str(index) + "/"
         os.mkdir(inject_dir)
         MATRIX.setup_logging(inject_dir)
         return inject_dir
@@ -330,7 +331,7 @@ class MATRIX:
         handler.setLevel(logging.INFO)
         handler.setFormatter(formatter)
         logger.addHandler(handler)
-        handler = logging.FileHandler(file_dir)
+        handler = logging.FileHandler(os.path.join(inject_dir, 'matrix.log'))
         handler.setLevel(logging.INFO)
         handler.setFormatter(formatter)
         logger.addHandler(handler)
@@ -1221,6 +1222,7 @@ class MATRIX:
             Recovered epochs (T0) at each iteration.
         """
         found_signal = False
+        snr = float('inf')
         time, flux = cleaned_array(time, flux)
         run = 0
         if ws > 0:
