@@ -24,7 +24,9 @@ if [[ -z "${CONDA_EXE}" ]]; then
   echo "Could not find conda. Set CONDA_EXE before running this script." >&2
   exit 1
 fi
-CONDA_BASE="$(${CONDA_EXE} info --base)"
+CONDA_PYTHON="$(dirname "${CONDA_EXE}")/python"
+CONDA_BASE="$(${CONDA_EXE} info --base 2>/dev/null || \
+  "${CONDA_PYTHON}" -c 'import json, subprocess, sys; print(json.loads(subprocess.check_output([sys.argv[1], "info", "--json"]))["root_prefix"])' "${CONDA_EXE}")"
 export CONDA_EXE
 export PATH="${CONDA_BASE}/condabin:${CONDA_BASE}/bin:${PATH}"
 
