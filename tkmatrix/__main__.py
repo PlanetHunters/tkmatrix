@@ -186,7 +186,7 @@ if __name__ == '__main__':
                                             matrix_user_properties["CPUS"])
         if rv['PHASES'] is not None:
             inject_dir, period_grid, mass_grid = ir.inject_rv(inject_dir, rv['FILE'], rv["PHASES"], rv['MIN_PERIOD'],
-                         rv["MAX_PERIOD"], rv["STEPS_PERIOD"], rv["MAX_MASS"], rv["STEPS_MASS"],
+                         rv["MAX_PERIOD"], rv["STEPS_PERIOD"], rv["MIN_MASS"], rv["MAX_MASS"], rv["STEPS_MASS"],
                          period_grid=rv['PERIOD_GRID'] if 'PERIOD_GRID' in rv else None,
                          mass_grid=rv['MASS_GRID'] if 'MASS_GRID' in rv else None,
                          period_grid_geom=rv["PERIOD_GRID_GEOM"],
@@ -195,24 +195,25 @@ if __name__ == '__main__':
                            rv['SNR_THRESHOLD'], rv['RUN_LIMIT'],
                            rv['MAX_PERIOD_SEARCH'], rv['OVERSAMPLING'] if 'OVERSAMPLING' in rv else 1)
             ir.plot_results(target, inject_dir, is_rv=True, planets_df=planets_df)
-    inject_dir, period_grid, radius_grid = ir.inject(matrix_user_properties["PHASES"],
-                           matrix_user_properties["MIN_PERIOD"], matrix_user_properties["MAX_PERIOD"],
-                           matrix_user_properties["STEPS_PERIOD"],
-                           matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
-                           matrix_user_properties["STEPS_RADIUS"],
-                           period_grid=matrix_user_properties['PERIOD_GRID'],
-                           radius_grid=matrix_user_properties['RADIUS_GRID'],
-                           period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
-                           radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"],
-                           inject_dir=inject_dir,
-                                                     system_inclination=system_inclination)
-    ir.recovery(inject_dir, matrix_user_properties["SNR_THRESHOLD"],
-                matrix_user_properties["DETREND_METHOD"],
-                matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
-                matrix_user_properties["RUN_LIMIT"],
-                custom_search, matrix_user_properties["MIN_PERIOD_SEARCH"], matrix_user_properties["MAX_PERIOD_SEARCH"], matrix_user_properties["OVERSAMPLING"],
-                matrix_user_properties["SIGNAL_SELECTION_MODE"],
-                use_search_cache=matrix_user_properties["USE_SEARCH_CACHE"], period_match_tolerance=period_match_tolerance,
-                 epoch_match_tolerance=epoch_match_tolerance)
-    ir.plot_results(target, inject_dir, planets_df=planets_df)
+    if matrix_user_properties["PHASES"] is not None:
+        inject_dir, period_grid, radius_grid = ir.inject(matrix_user_properties["PHASES"],
+                               matrix_user_properties["MIN_PERIOD"], matrix_user_properties["MAX_PERIOD"],
+                               matrix_user_properties["STEPS_PERIOD"],
+                               matrix_user_properties["MIN_RADIUS"], matrix_user_properties["MAX_RADIUS"],
+                               matrix_user_properties["STEPS_RADIUS"],
+                               period_grid=matrix_user_properties['PERIOD_GRID'],
+                               radius_grid=matrix_user_properties['RADIUS_GRID'],
+                               period_grid_geom=matrix_user_properties["PERIOD_GRID_GEOM"],
+                               radius_grid_geom=matrix_user_properties["RADIUS_GRID_GEOM"],
+                               inject_dir=inject_dir,
+                                                         system_inclination=system_inclination)
+        ir.recovery(inject_dir, matrix_user_properties["SNR_THRESHOLD"],
+                    matrix_user_properties["DETREND_METHOD"],
+                    matrix_user_properties["DETREND_WS"], matrix_user_properties["FIT_METHOD"],
+                    matrix_user_properties["RUN_LIMIT"],
+                    custom_search, matrix_user_properties["MIN_PERIOD_SEARCH"], matrix_user_properties["MAX_PERIOD_SEARCH"], matrix_user_properties["OVERSAMPLING"],
+                    matrix_user_properties["SIGNAL_SELECTION_MODE"],
+                    use_search_cache=matrix_user_properties["USE_SEARCH_CACHE"], period_match_tolerance=period_match_tolerance,
+                     epoch_match_tolerance=epoch_match_tolerance)
+        ir.plot_results(target, inject_dir, planets_df=planets_df)
     print("Execution time: " + str(datetime.datetime.now() - start_time))

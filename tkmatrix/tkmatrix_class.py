@@ -377,12 +377,15 @@ class MATRIX:
             assert steps_mass is not None and isinstance(steps_mass, (int)) and steps_mass > 0
             assert max_mass >= min_mass
             mass_grid = np.linspace(min_mass, max_mass, steps_mass) if mass_grid_geom == "lin" \
-                else np.logspace(np.log10(min_mass), np.log10(max_mass), steps_period)
+                else np.logspace(np.log10(min_mass), np.log10(max_mass), steps_mass)
         mass_grid = np.round(mass_grid, 2)
         if inject_dir is None:
             inject_dir, object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
         habitability_calculator = HabitabilityCalculator()
-        semimajor_axis = HabitabilityCalculator().calculate_semi_major_axis(min_period, self.search_input.mstar.value)
+        semimajor_axis, _, _ = habitability_calculator.calculate_semi_major_axis(min_period, min_period / 1000,
+                                                                                 min_period / 1000,
+                                                                                 self.search_input.mstar.value,
+                                                                                 0.1, 0.1)
         rstar_au = self.search_input.rstar.to(u.au).value
         if rstar_au / semimajor_axis >= 1:
             period_for_rstar = habitability_calculator.au_to_period(self.search_input.mstar.value, rstar_au)
@@ -390,11 +393,10 @@ class MATRIX:
                 "Your minimum period is in a shorter orbit than the star radius. The minimum period for this star should be > " + str(
                     round(period_for_rstar, 2)) + ' days')
         inject_models = []
-        rv_df = pd.read_csv(rv_file)
-        rv_df = rv_df.sort_values(by=['bjd'], ascending=True)
-        time = rv_df['bjd']
-        rv = rv_df['rv']
-        rv_err = rv_df['rv_err']
+        rv_df = MATRIX.load_rv_file(rv_file)
+        time = rv_df['bjd'].to_numpy()
+        rv = rv_df['rv'].to_numpy()
+        rv_err = rv_df['rv_err'].to_numpy()
         for period in period_grid:
             for t0 in np.linspace(time[0], time[0] + period, phases + 2)[1:-1]:
                 for mplanet in mass_grid:
@@ -444,8 +446,8 @@ class MATRIX:
             radius_grid = np.linspace(min_radius, max_radius, steps_radius) if radius_grid_geom == "lin" \
                 else np.logspace(np.log10(min_radius), np.log10(max_radius), steps_period)
         radius_grid = np.round(radius_grid, 2)
-        if inject_dir is None:
-            inject_dir, self.object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
+        inject_dir, self.object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input,
+                                                                                                inject_dir)
         habitability_calculator = HabitabilityCalculator()
         semimajor_axis_min_period, _, _ = HabitabilityCalculator().calculate_semi_major_axis(min_period,
                                                                             min_period / 1000, min_period / 1000,
@@ -489,8 +491,37 @@ class MATRIX:
             pool.map(InjectModel.make_model, inject_models)
         return inject_dir, period_grid, radius_grid
 
+    @staticmethod
+    def load_rv_file(filename):
+        """Load an RV measurements file, sorted by time and without incomplete rows.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the RV CSV file (must contain columns: bjd, rv, rv_err).
+
+        Returns
+        -------
+        pandas.DataFrame
+            The valid measurements with a clean index.
+
+        Raises
+        ------
+        ValueError
+            If a column is missing or any ``rv_err`` is not positive.
+        """
+        rv_df = pd.read_csv(filename)
+        missing_columns = {'bjd', 'rv', 'rv_err'} - set(rv_df.columns)
+        if missing_columns:
+            raise ValueError("The RV file " + str(filename) + " lacks the columns " + str(sorted(missing_columns)) +
+                             ". It needs bjd, rv and rv_err.")
+        rv_df = rv_df.dropna(subset=['bjd', 'rv', 'rv_err'])
+        if (rv_df['rv_err'] <= 0).any():
+            raise ValueError("All the rv_err values of " + str(filename) + " must be positive.")
+        return rv_df.sort_values(by=['bjd'], ascending=True).reset_index(drop=True)
+
     def recovery_rv_periods(self, filename, max_period_search, rv_masks=None, oversampling=1,
-                            cores=os.cpu_count() - 1):
+                            cores=os.cpu_count() - 1, inject_dir=None):
         """Run RV period recovery on the original RV data file.
 
         Performs Lomb-Scargle periodogram analysis on the RV data, masks known
@@ -509,6 +540,8 @@ class MATRIX:
             Oversampling factor for the period grid. Default 1.
         cores : int, optional
             Number of CPU cores. Default ``os.cpu_count() - 1``.
+        inject_dir : str, optional
+            Directory to store the plot. If None, the object data is retrieved and a new directory is created.
 
         Returns
         -------
@@ -517,9 +550,9 @@ class MATRIX:
         """
         if rv_masks is None:
             rv_masks = {}
-        rv_df = pd.read_csv(filename)
-        rv_df = rv_df.dropna()
-        rv_df = rv_df.sort_values(by=['bjd'], ascending=True)
+        if inject_dir is None:
+            inject_dir, object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
+        rv_df = MATRIX.load_rv_file(filename)
         period_grid_size = int((max_period_search - MATRIX.MIN_SEARCH_PERIOD) * 100 * oversampling)
         rv_data, period_grid, k_grid, omega_grid, msin_grid, least_squares_grid, argmax_sde, power, snr, SDE = \
             RvFitter.recover_periods(rv_df, period_grid_geom='log', steps_period=period_grid_size, period_min=0.5,
@@ -587,7 +620,7 @@ class MATRIX:
         reports_df = pd.DataFrame(columns=['period', 'mass', 'epoch', 'period_found', 'epoch_found', 'mass_found',
                                            'found', 'snr', 'sde', 'run'])
         for file in sorted(os.listdir(inject_dir)):
-            file_name_matches = re.search("RV_P([0-9]+\\.*[0-9]*)+_M([0-9]+\\.*[0-9]*)_([0-9]+\\.*[0-9]*)\\.csv", file)
+            file_name_matches = re.search("RV_P([0-9]+\\.*[0-9]*)+_M([0-9]+\\.*[0-9]*)_T([0-9]+\\.*[0-9]*)\\.csv", file)
             if file_name_matches is not None:
                 try:
                     period = float(file_name_matches[1])
@@ -606,7 +639,7 @@ class MATRIX:
                     else:
                         period_grid_size = int((max_period_search - self.MIN_SEARCH_PERIOD) * 100 * oversampling)
                         found, run, snr, sde, period_found, omega_found, mass_found = \
-                            RvFitter.recover_signal(df, period, 3, 0.5, rv_masks, self.star_info.mass, 'log',
+                            RvFitter.recover_signal(df, period, 3, 0.5, rv_masks, self.search_input.star_info.mass, 'log',
                                                     period_grid_size, self.MIN_SEARCH_PERIOD, max_period_search,
                                                     snr_threshold, snr_threshold, run_limit)
                     new_report = {"period": period, "mass": m_planet, "epoch": epoch, "found": found, "snr": snr,

@@ -26,7 +26,9 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/PlanetHunters/tkmatrix",
-    packages=setuptools.find_packages(),
+    license_files=["LICENSE", "tkmatrix/ravex/LICENSE"],
+    # ravex is a git submodule keeping its code under src/, which find_packages does not reach
+    packages=setuptools.find_packages() + ['tkmatrix.ravex.src.ravex'],
     include_package_data=True,
     classifiers=[
         "Programming Language :: Python :: 3",

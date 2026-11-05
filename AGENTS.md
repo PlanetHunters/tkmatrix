@@ -26,11 +26,12 @@ tkmatrix/
 ├── tkmatrix_class.py        # MATRIX class — core engine
 ├── inject_model.py          # Light curve injection (batman + ellc)
 ├── inject_rv_model.py       # Radial Velocity injection
-├── rv.py                    # RV recovery and fitting
+├── rv.py                    # RV injection, recovery and fitting, built on ravex
 ├── bayesian.py              # Bayesian analysis utilities
 ├── custom_algorithms/        # Pluggable search algorithms
 │   └── CustomSearchAlgorithm.py
 ├── ellc/                    # Bundled Fortran/C library (git submodule)
+├── ravex/                   # RV engine, pinned to a tag (git submodule). Never depend on `ravex` from PyPI: it is an unrelated package
 ├── properties.yaml          # Default/reference configuration schema
 ├── programmatic.py           # Example programmatic API usage
 └── tests/
@@ -252,3 +253,7 @@ The properties YAML supports an `RV:` block. When `RV.FILE` is provided, the too
 2. Inject synthetic RV signals (`inject_rv`).
 3. Run RV recovery (`recovery_rv`).
 4. Plot RV results.
+
+If the top-level `PHASES` is empty, the photometric stage is skipped and the run is RV-only.
+
+The search weights points by `rv_err`. `SNR` and `SDE` are computed from the square root of the GLS power, so `SNR_THRESHOLD` keeps its meaning. `epoch_found` in `a_rv_report.csv` holds the fitted phase in radians, not an epoch.
