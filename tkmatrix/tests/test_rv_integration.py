@@ -206,17 +206,23 @@ def test_report_is_saved_while_recovery_is_running(matrix, tmp_path):
     assert saved_rows == [3, 6, 8]
 
 
-def _kill_the_worker(*_):
-    os.kill(os.getpid(), signal.SIGKILL)
-
-
-def test_a_dead_worker_raises_and_does_not_hang(matrix, tmp_path):
+def test_a_dead_worker_raises_and_keeps_the_finished_rows(matrix, tmp_path, caplog):
     rv_file = str(tmp_path / "rv.csv")
     write_rv_file(rv_file)
     inject_dir, _, _ = inject(matrix, rv_file)
-    with mock.patch("tkmatrix.rv.RvFitter.recover_signal", side_effect=_kill_the_worker):
-        with pytest.raises(BrokenProcessPool):
+    matrix.search_input.cores = 1
+    recover_signal = RvFitter.recover_signal
+
+    def kill_on_the_long_period(df, period, *args):
+        if period > 5:
+            os.kill(os.getpid(), signal.SIGKILL)
+        return recover_signal(df, period, *args)
+
+    with mock.patch("tkmatrix.rv.RvFitter.recover_signal", side_effect=kill_on_the_long_period):
+        with caplog.at_level("ERROR"), pytest.raises(BrokenProcessPool):
             matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1)
+    assert len(pd.read_csv(os.path.join(inject_dir, "a_rv_report.csv"))) == 4
+    assert "RV recovery stopped after 4 of 8 scenarios" in caplog.text
 
 
 def test_built_package_contains_ravex_and_its_license(tmp_path):

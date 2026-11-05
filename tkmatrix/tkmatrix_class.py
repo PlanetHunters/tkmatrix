@@ -653,18 +653,25 @@ class MATRIX:
         reports = []
         failures = []
         # Unlike a Pool, this executor raises if a worker dies. Results are saved as they come, to survive interruptions.
-        with ProcessPoolExecutor(max_workers=self.search_input.cores) as executor:
-            for (file, *_), (report, failure) in zip(scenarios, executor.map(MATRIX.recover_rv_scenario, scenarios)):
-                if failure is None:
-                    reports.append(report)
-                    print("RV P=" + str(report["period"]) + ", M=" + str(report["mass"]) + ", T0=" +
-                          str(report["epoch"]) + ", FOUND WAS " + str(report["found"]) + " WITH SNR " +
-                          str(report["snr"]) + " AND SDE " + str(report["sde"]))
-                    if len(reports) % MATRIX.RV_REPORT_SAVE_INTERVAL == 0:
-                        MATRIX.save_rv_report(reports, inject_dir)
-                else:
-                    failures.append(failure)
-                    logging.error("RV scenario failed: %s\n%s", file, failure)
+        try:
+            with ProcessPoolExecutor(max_workers=self.search_input.cores) as executor:
+                for (file, *_), (report, failure) in zip(scenarios, executor.map(MATRIX.recover_rv_scenario, scenarios)):
+                    if failure is None:
+                        reports.append(report)
+                        print("RV P=" + str(report["period"]) + ", M=" + str(report["mass"]) + ", T0=" +
+                              str(report["epoch"]) + ", FOUND WAS " + str(report["found"]) + " WITH SNR " +
+                              str(report["snr"]) + " AND SDE " + str(report["sde"]))
+                        if len(reports) % MATRIX.RV_REPORT_SAVE_INTERVAL == 0:
+                            MATRIX.save_rv_report(reports, inject_dir)
+                    else:
+                        failures.append(failure)
+                        logging.error("RV scenario failed: %s\n%s", file, failure)
+        except BaseException:
+            if reports:
+                MATRIX.save_rv_report(reports, inject_dir)
+            logging.exception("RV recovery stopped after %s of %s scenarios", len(reports) + len(failures),
+                              len(scenarios))
+            raise
         if len(reports) == 0:
             raise RuntimeError("All the " + str(len(scenarios)) + " RV scenarios of " + inject_dir +
                                " failed. The injected files are kept. First error:\n" +
