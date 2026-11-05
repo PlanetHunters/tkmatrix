@@ -1,0 +1,156 @@
+"""Unit tests for the RV engine (issue #34). Run offline, using independent oracles."""
+import numpy as np
+import pandas as pd
+import pytest
+import astropy.units as u
+import lightkurve
+
+from tkmatrix.rv import RecoverPeriodInput, RvFitter
+
+MSTAR = 0.5
+SEARCH_MAX_PERIOD = 25.0
+
+
+def published_semiamplitude(mass_earth, period_days, star_mass_sun):
+    """K for a circular edge-on orbit, from the 28.4329 m/s relation of Lovis & Fischer (2010)."""
+    mass_jupiter = mass_earth / 317.8284
+    period_years = period_days / 365.25
+    return 28.4329 * mass_jupiter * star_mass_sun ** (-2 / 3) * period_years ** (-1 / 3)
+
+
+def series(seed=1, points=80, span=300.0, noise=1.0):
+    rng = np.random.default_rng(seed)
+    time = np.sort(rng.uniform(2458000.0, 2458000.0 + span, points))
+    return time, rng.normal(0, noise, points), np.full(points, noise)
+
+
+def frame(time, rv, rv_err):
+    return pd.DataFrame({"bjd": time, "rv": rv, "rv_err": rv_err})
+
+
+def test_ravex_is_available_from_the_submodule():
+    from tkmatrix.ravex.src.ravex.core import MultiPlanetSystem
+    assert callable(MultiPlanetSystem.inject_planet_in_series)
+    assert callable(MultiPlanetSystem.recover_periodic_signal)
+
+
+@pytest.mark.parametrize("period,mass", [(3.5, 2.0), (11.3, 8.0), (40.0, 50.0)])
+def test_injection_matches_published_circular_orbit(period, mass):
+    time = 2458000.0 + np.linspace(0, 60, 400)
+    t0 = 2458001.3
+    injected = RvFitter.inject_rv(time, MSTAR * u.M_sun, 0.5 * u.R_sun, mass * u.M_earth, period, t0)
+    k = published_semiamplitude(mass, period, MSTAR)
+    expected = -k * np.sin(2 * np.pi * (time - t0) / period)
+    assert np.sqrt(np.mean((injected - expected) ** 2)) / k < 1e-3
+
+
+def test_injection_crosses_zero_descending_at_the_transit_epoch():
+    t0, period = 2458001.3, 7.0
+    around = np.array([t0 - 0.01, t0, t0 + 0.01])
+    before, at, after = RvFitter.inject_rv(around, MSTAR * u.M_sun, 0.5 * u.R_sun, 10 * u.M_earth, period, t0)
+    assert before > 0 > after
+    assert abs(at) < 1e-3 * before / 0.01
+
+
+def test_injection_accepts_reduced_time_stamps():
+    time = np.linspace(58400.0, 58460.0, 50)
+    injected = RvFitter.inject_rv(time, MSTAR * u.M_sun, 0.5 * u.R_sun, 5 * u.M_earth, 5.0, 58401.0)
+    assert np.all(np.isfinite(injected))
+    assert np.abs(injected).max() > 0
+
+
+@pytest.mark.parametrize("offset", [0.0, 100.0, -5678.0])
+def test_recover_period_handles_rv_offsets(offset):
+    time, _, rv_err = series()
+    k, omega, period = 3.0, 1.2, 6.3
+    rv = offset + RvFitter.sinfunc(time, k, omega, period)
+    found_period, found_k, found_omega, k_err, omega_err, chi2 = RvFitter.recover_period(
+        RecoverPeriodInput(time, rv, rv_err, period))
+    assert found_period == pytest.approx(period)
+    assert found_k == pytest.approx(k, rel=1e-6)
+    assert found_omega == pytest.approx(omega, rel=1e-6)
+    assert chi2 == pytest.approx(0, abs=1e-12)
+
+
+def test_recover_period_keeps_the_sinfunc_convention():
+    time, noise, rv_err = series()
+    _, k, omega, k_err, omega_err, _ = RvFitter.recover_period(
+        RecoverPeriodInput(time, RvFitter.sinfunc(time, 4.0, 5.5, 9.0) + noise, rv_err, 9.0))
+    assert k > 0
+    assert 0 <= omega < 2 * np.pi
+    assert 0 < k_err < 1
+    assert 0 < omega_err < 1
+
+
+def test_mask_with_mass_subtracts_that_amplitude():
+    time, noise, rv_err = series()
+    period, mass = 6.3, 10.0
+    k = RvFitter.compute_semiamplitude_from_mmin(mass, period, MSTAR)
+    rv = RvFitter.sinfunc(time, k, 2.0, period) + noise
+    masked = RvFitter.mask_signals(frame(time, rv, rv_err), [{"P": period, "M": mass}], MSTAR)
+    assert np.std(masked) < 0.5 * np.std(rv)
+
+
+def test_mask_without_mass_removes_the_signal():
+    time, noise, rv_err = series()
+    rv = RvFitter.sinfunc(time, 6.0, 2.0, 6.3) + noise
+    masked = RvFitter.mask_signals(frame(time, rv, rv_err), [{"P": 6.3}], MSTAR)
+    assert np.std(masked) == pytest.approx(np.std(noise), rel=0.2)
+
+
+def test_strongest_signal_keeps_tuple_shape_and_finds_the_period():
+    time, noise, rv_err = series()
+    k, period = 4.0, 6.3
+    result = RvFitter.recover_strongest_signal(frame(time, RvFitter.sinfunc(time, k, 1.0, period) + noise, rv_err),
+                                               max_period=SEARCH_MAX_PERIOD, star_mass=MSTAR)
+    assert len(result) == 10
+    rv_data, found_period, found_k, omega, msin, chi2, argmax, power, snr, sde = result
+    assert found_period == pytest.approx(period, rel=0.01)
+    assert found_k == pytest.approx(k, rel=0.2)
+    assert msin == pytest.approx(RvFitter.compute_mmin_from_semiamplitude([found_period], [found_k], MSTAR)[0])
+    assert power[argmax] == np.max(power)
+
+
+@pytest.mark.parametrize("seed", [2, 3, 4])
+def test_snr_and_sde_keep_the_amplitude_periodogram_scale(seed):
+    """With equal errors the weighted search must match lightkurve's amplitude statistics."""
+    time, noise, rv_err = series(seed=seed)
+    rv = noise + RvFitter.sinfunc(time, 1.0, 1.0, 6.3)
+    *_, snr, sde = RvFitter.recover_strongest_signal(frame(time, rv, rv_err), max_period=SEARCH_MAX_PERIOD,
+                                                     star_mass=MSTAR)
+    periodogram = lightkurve.LightCurve(time=time, flux=rv - rv.mean()).to_periodogram(
+        oversample_factor=10, minimum_period=0.4, maximum_period=SEARCH_MAX_PERIOD)
+    periods, power = periodogram.period.value, periodogram.power.value
+    best = periods[np.argmax(power)]
+    window = (SEARCH_MAX_PERIOD - 0.5) / 20
+    around = (periods > best - window / 2) & (periods < best + window / 2)
+    assert sde == pytest.approx(np.max(power / np.std(power)), rel=0.05)
+    assert snr == pytest.approx(np.max(power) / np.median(power[around]), rel=0.1)
+
+
+def test_recover_signal_prewhitens_a_stronger_unrelated_signal():
+    time, noise, rv_err = series(points=120)
+    rv = RvFitter.sinfunc(time, 12.0, 0.4, 2.77) + RvFitter.sinfunc(time, 3.0, 1.0, 9.1) + noise
+    found, run, snr, sde, period, omega, msin = RvFitter.recover_signal(
+        frame(time, rv, rv_err), 9.1, 3, 0.5, None, MSTAR, 'log', 100, 0.5, SEARCH_MAX_PERIOD, 5, 5, 3)
+    assert found
+    assert run == 1
+    assert period == pytest.approx(9.1, rel=0.01)
+
+
+def test_recover_signal_applies_masks_before_searching():
+    time, noise, rv_err = series(points=120)
+    rv = RvFitter.sinfunc(time, 12.0, 0.4, 2.77) + RvFitter.sinfunc(time, 3.0, 1.0, 9.1) + noise
+    found, run, *_ = RvFitter.recover_signal(frame(time, rv, rv_err), 9.1, 3, 0.5, [{"P": 2.77}], MSTAR, 'log', 100,
+                                             0.5, SEARCH_MAX_PERIOD, 5, 5, 3)
+    assert found
+    assert run == 0
+
+
+def test_found_does_not_depend_on_the_thresholds():
+    time, noise, rv_err = series()
+    rv = RvFitter.sinfunc(time, 6.0, 1.0, 6.3) + noise
+    found, run, *_ = RvFitter.recover_signal(frame(time, rv, rv_err), 6.3, 3, 0.5, None, MSTAR, 'log', 100, 0.5,
+                                             SEARCH_MAX_PERIOD, 1000, 1000, 3)
+    assert found
+    assert run == 0
