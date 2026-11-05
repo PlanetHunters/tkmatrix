@@ -5,6 +5,7 @@ import multiprocessing
 import shutil
 import sys
 import traceback
+from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Pool
 from pathlib import Path
 
@@ -102,6 +103,7 @@ class MATRIX:
     MIN_SEARCH_PERIOD = 0.5
     # A sinusoid fit has three free parameters: amplitude, phase and offset
     MIN_RV_MEASUREMENTS = 4
+    RV_REPORT_SAVE_INTERVAL = 50
     DETREND_BIWEIGHT = "biweight"
     DETREND_GP = "gp"
 
@@ -519,7 +521,7 @@ class MATRIX:
             raise ValueError("The RV file " + str(filename) + " lacks the columns " + str(sorted(missing_columns)) +
                              ". It needs bjd, rv and rv_err.")
         for column in columns:
-            values = pd.to_numeric(rv_df[column], errors='coerce')
+            values = pd.to_numeric(rv_df[column], errors='coerce').astype(float)
             if (values.isna() & rv_df[column].notna()).any():
                 raise ValueError("The column " + column + " of the RV file " + str(filename) +
                                  " has non-numeric values.")
@@ -648,19 +650,21 @@ class MATRIX:
                                   float(file_name_matches[2]), float(file_name_matches[3]), rv_masks,
                                   self.search_input.star_info.mass, period_grid_size, self.MIN_SEARCH_PERIOD,
                                   max_period_search, snr_threshold, run_limit))
-        with Pool(processes=self.search_input.cores) as pool:
-            results = pool.map(MATRIX.recover_rv_scenario, scenarios)
         reports = []
         failures = []
-        for (file, *_), (report, failure) in zip(scenarios, results):
-            if failure is None:
-                reports.append(report)
-                print("RV P=" + str(report["period"]) + ", M=" + str(report["mass"]) + ", T0=" +
-                      str(report["epoch"]) + ", FOUND WAS " + str(report["found"]) + " WITH SNR " +
-                      str(report["snr"]) + " AND SDE " + str(report["sde"]))
-            else:
-                failures.append(failure)
-                logging.error("RV scenario failed: %s\n%s", file, failure)
+        # Unlike a Pool, this executor raises if a worker dies. Results are saved as they come, to survive interruptions.
+        with ProcessPoolExecutor(max_workers=self.search_input.cores) as executor:
+            for (file, *_), (report, failure) in zip(scenarios, executor.map(MATRIX.recover_rv_scenario, scenarios)):
+                if failure is None:
+                    reports.append(report)
+                    print("RV P=" + str(report["period"]) + ", M=" + str(report["mass"]) + ", T0=" +
+                          str(report["epoch"]) + ", FOUND WAS " + str(report["found"]) + " WITH SNR " +
+                          str(report["snr"]) + " AND SDE " + str(report["sde"]))
+                    if len(reports) % MATRIX.RV_REPORT_SAVE_INTERVAL == 0:
+                        MATRIX.save_rv_report(reports, inject_dir)
+                else:
+                    failures.append(failure)
+                    logging.error("RV scenario failed: %s\n%s", file, failure)
         if len(reports) == 0:
             raise RuntimeError("All the " + str(len(scenarios)) + " RV scenarios of " + inject_dir +
                                " failed. The injected files are kept. First error:\n" +
@@ -668,11 +672,24 @@ class MATRIX:
         if failures:
             logging.warning("%s of %s RV scenarios failed and are missing from the results", len(failures),
                             len(scenarios))
+        MATRIX.save_rv_report(reports, inject_dir)
+        self.remove_non_results_files(inject_dir)
+
+    @staticmethod
+    def save_rv_report(reports, inject_dir):
+        """Write the RV report sorted by scenario.
+
+        Parameters
+        ----------
+        reports : list of dict
+            One row per recovered scenario.
+        inject_dir : str
+            Directory to store ``a_rv_report.csv``.
+        """
         reports_df = pd.DataFrame(reports, columns=['period', 'mass', 'epoch', 'period_found', 'epoch_found',
                                                     'mass_found', 'found', 'snr', 'sde', 'run'])
         reports_df = reports_df.sort_values(['period', 'mass', 'epoch'], ascending=[True, True, True])
         reports_df.to_csv(os.path.join(inject_dir, "a_rv_report.csv"), index=False)
-        self.remove_non_results_files(inject_dir)
 
     @staticmethod
     def recover_rv_scenario(scenario):

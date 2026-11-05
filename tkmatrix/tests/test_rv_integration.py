@@ -2,8 +2,10 @@
 import inspect
 import os
 import re
+import signal
 import subprocess
 import sys
+from concurrent.futures.process import BrokenProcessPool
 from unittest import mock
 
 import astropy.units as u
@@ -12,6 +14,7 @@ import pandas as pd
 import pytest
 from lcbuilder.star.starinfo import StarInfo
 
+from tkmatrix.rv import RvFitter
 from tkmatrix.tkmatrix_class import MATRIX
 
 REPORT_COLUMNS = ['period', 'mass', 'epoch', 'period_found', 'epoch_found', 'mass_found', 'found', 'snr', 'sde', 'run']
@@ -151,6 +154,15 @@ def test_unusable_rv_files_name_the_problem(tmp_path, content, message):
         MATRIX.load_rv_file(str(rv_file))
 
 
+def test_whole_number_errors_work_with_a_mass_mask(tmp_path):
+    rv_file = tmp_path / "rv.csv"
+    frame = write_rv_file(str(rv_file))
+    frame["rv_err"] = 2
+    frame.to_csv(rv_file, index=False)
+    loaded = MATRIX.load_rv_file(str(rv_file))
+    assert np.all(np.isfinite(RvFitter.mask_signals(loaded, [{"P": 5.0, "M": 3.0}], 0.5)))
+
+
 def test_invalid_file_is_reported_before_retrieving_the_object(matrix, tmp_path):
     rv_file = tmp_path / "rv.csv"
     rv_file.write_text("bjd,rv\n1,1\n")
@@ -181,6 +193,30 @@ def test_partial_failures_are_logged_and_keep_the_other_rows(matrix, tmp_path, c
     assert len(pd.read_csv(os.path.join(inject_dir, "a_rv_report.csv"))) == 7
     assert "1 of 8 RV scenarios failed" in caplog.text
     assert broken in caplog.text
+
+
+def test_report_is_saved_while_recovery_is_running(matrix, tmp_path):
+    rv_file = str(tmp_path / "rv.csv")
+    write_rv_file(rv_file)
+    inject_dir, _, _ = inject(matrix, rv_file)
+    saved_rows = []
+    with mock.patch.object(MATRIX, "RV_REPORT_SAVE_INTERVAL", 3), \
+            mock.patch.object(MATRIX, "save_rv_report", side_effect=lambda rows, _: saved_rows.append(len(rows))):
+        matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1)
+    assert saved_rows == [3, 6, 8]
+
+
+def _kill_the_worker(*_):
+    os.kill(os.getpid(), signal.SIGKILL)
+
+
+def test_a_dead_worker_raises_and_does_not_hang(matrix, tmp_path):
+    rv_file = str(tmp_path / "rv.csv")
+    write_rv_file(rv_file)
+    inject_dir, _, _ = inject(matrix, rv_file)
+    with mock.patch("tkmatrix.rv.RvFitter.recover_signal", side_effect=_kill_the_worker):
+        with pytest.raises(BrokenProcessPool):
+            matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1)
 
 
 def test_built_package_contains_ravex_and_its_license(tmp_path):

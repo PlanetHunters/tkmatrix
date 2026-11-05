@@ -124,6 +124,25 @@ def test_fit_errors_are_the_formal_ones():
     assert np.mean([fit[4] for fit in fits]) == pytest.approx(np.std(phases), rel=0.15)
 
 
+def test_fit_errors_are_not_scaled_by_the_fit_quality():
+    time, _, rv_err = series(points=100)
+    rng = np.random.default_rng(13)
+    fits = [RvFitter.recover_period(RecoverPeriodInput(time, RvFitter.sinfunc(time, 12.0, 2.0, 7.7) +
+                                                       rng.normal(0, 3.0, 100), rv_err, 7.7)) for _ in range(400)]
+    assert np.mean([fit[3] for fit in fits]) == pytest.approx(np.std([fit[1] for fit in fits]) / 3, rel=0.15)
+
+
+def test_fixed_amplitude_phase_error_matches_the_scatter():
+    time, _, rv_err = series(points=100)
+    rng = np.random.default_rng(14)
+    period, mass, omega = 7.7, 30.0, 2.0
+    k = RvFitter.compute_semiamplitude_from_mmin(mass, period, MSTAR)
+    fits = [RvFitter.recover_period(RecoverPeriodInput(time, RvFitter.sinfunc(time, k, omega, period) +
+                                                       rng.normal(0, 1.0, 100), rv_err, period, mass, MSTAR))
+            for _ in range(200)]
+    assert np.mean([fit[4] for fit in fits]) == pytest.approx(np.std([fit[2] for fit in fits]), rel=0.2)
+
+
 def test_mask_without_mass_removes_the_signal():
     time, noise, rv_err = series()
     rv = RvFitter.sinfunc(time, 6.0, 2.0, 6.3) + noise
