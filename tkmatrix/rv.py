@@ -3,8 +3,15 @@ from multiprocessing import Pool
 
 from astropy import units as u
 import numpy
+from scipy.optimize import minimize_scalar
 
-from tkmatrix.ravex.src.ravex.core import MultiPlanetSystem
+try:
+    from tkmatrix.ravex.src.ravex.core import MultiPlanetSystem
+except ModuleNotFoundError as error:
+    if error.name is None or not error.name.startswith("tkmatrix.ravex"):
+        raise
+    raise ModuleNotFoundError("The ravex submodule is missing. Run `git submodule update --init --recursive`.",
+                              name=error.name) from error
 
 # The periodogram search has always started here, whatever `period_min` is given. Kept for compatibility.
 SEARCH_MIN_PERIOD = 0.4
@@ -231,8 +238,48 @@ class RvFitter:
         return found, run, snr, SDE, signal_period, signal_omega, signal_msin
 
     @staticmethod
+    def fit_phase_for_amplitude(angle, rv_data, rv_err, k):
+        """Find the phase of a sinusoid of known amplitude, with the offset profiled out.
+
+        Parameters
+        ----------
+        angle : numpy.ndarray
+            Orbital angle of every measurement, in radians.
+        rv_data : numpy.ndarray
+            Radial velocity data.
+        rv_err : numpy.ndarray
+            Radial velocity error values.
+        k : float
+            The known semi-amplitude.
+
+        Returns
+        -------
+        tuple
+            (omega, omega_err)
+        """
+        weights = rv_err ** -2
+
+        def centered(values):
+            return values - numpy.average(values, axis=-1, weights=weights)[..., None]
+
+        def chi2(omega):
+            residuals = centered(rv_data - k * numpy.cos(angle + numpy.atleast_1d(omega)[:, None]))
+            return numpy.sum(weights * residuals ** 2, axis=1)
+
+        omega_grid = numpy.linspace(0, 2 * numpy.pi, 360, endpoint=False)
+        best_omega = omega_grid[numpy.argmin(chi2(omega_grid))]
+        step = omega_grid[1]
+        omega = minimize_scalar(lambda value: chi2(value)[0], bounds=(best_omega - step, best_omega + step),
+                                method='bounded').x % (2 * numpy.pi)
+        curvature = numpy.sum(weights * centered(k * numpy.sin(angle + omega)) ** 2)
+        return omega, 1 / numpy.sqrt(curvature) if curvature > 0 else numpy.inf
+
+    @staticmethod
     def recover_period(input: RecoverPeriodInput):
         """Fit a sinusoidal RV model with a free offset for a single period.
+
+        When the input gives a mass and a star mass, the amplitude is fixed from them and only the phase and the
+        offset are fitted. The returned errors are formal: they trust `rv_err` and are not scaled by the fit quality.
 
         Parameters
         ----------
@@ -264,9 +311,9 @@ class RvFitter:
             k_err = numpy.sqrt(gradient_k @ covariance[1:, 1:] @ gradient_k)
             omega_err = numpy.sqrt(gradient_omega @ covariance[1:, 1:] @ gradient_omega)
         if input.msin is not None and input.star_mass is not None:
-            # A known mass fixes the amplitude, leaving only the phase and the offset free
             k = RvFitter.compute_semiamplitude_from_mmin(input.msin, period, input.star_mass)
             k_err = 0
+            omega, omega_err = RvFitter.fit_phase_for_amplitude(angle, input.rv_data, input.rv_err, k)
             residuals = input.rv_data - RvFitter.sinfunc(input.time, k, omega, period)
             gamma = numpy.average(residuals, weights=input.rv_err ** -2)
         model = gamma + RvFitter.sinfunc(input.time, k, omega, period)

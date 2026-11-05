@@ -82,13 +82,46 @@ def test_recover_period_keeps_the_sinfunc_convention():
     assert 0 < omega_err < 1
 
 
-def test_mask_with_mass_subtracts_that_amplitude():
+def test_mask_with_mass_fixes_the_amplitude_from_the_published_relation():
     time, noise, rv_err = series()
-    period, mass = 6.3, 10.0
-    k = RvFitter.compute_semiamplitude_from_mmin(mass, period, MSTAR)
-    rv = RvFitter.sinfunc(time, k, 2.0, period) + noise
+    period, mass, omega = 6.3, 10.0, 2.0
+    k_mask = published_semiamplitude(mass, period, MSTAR)
+    k_true = 2.5 * k_mask
+    rv = RvFitter.sinfunc(time, k_true, omega, period) + noise
+    _, k, found_omega, k_err, omega_err, _ = RvFitter.recover_period(
+        RecoverPeriodInput(time, rv, rv_err, period, mass, MSTAR))
+    assert k == pytest.approx(k_mask, rel=2e-3)
+    assert k_err == 0
+    assert found_omega == pytest.approx(omega, abs=0.1)
     masked = RvFitter.mask_signals(frame(time, rv, rv_err), [{"P": period, "M": mass}], MSTAR)
-    assert np.std(masked) < 0.5 * np.std(rv)
+    remaining = RvFitter.recover_period(RecoverPeriodInput(time, masked, rv_err, period))[1]
+    assert remaining == pytest.approx(k_true - k_mask, abs=0.5)
+
+
+def test_fixed_amplitude_phase_is_the_constrained_optimum_near_a_window_alias():
+    rng = np.random.default_rng(9)
+    time = 2458000.0 + np.arange(40) + rng.normal(0, 0.02, 40)
+    rv_err = rng.uniform(0.5, 3.0, 40)
+    period, mass = 1.002, 30.0
+    k = RvFitter.compute_semiamplitude_from_mmin(mass, period, MSTAR)
+    rv = RvFitter.sinfunc(time, k, 1.0, period) + rng.normal(0, 1, 40) * rv_err
+    chi2 = RvFitter.recover_period(RecoverPeriodInput(time, rv, rv_err, period, mass, MSTAR))[5]
+    scan = []
+    for omega in np.linspace(0, 2 * np.pi, 7200, endpoint=False):
+        residuals = rv - RvFitter.sinfunc(time, k, omega, period)
+        residuals = residuals - np.average(residuals, weights=rv_err ** -2)
+        scan.append(np.sum((residuals / rv_err) ** 2))
+    assert chi2 <= np.min(scan) + 1e-6
+
+
+def test_fit_errors_are_the_formal_ones():
+    time, _, rv_err = series(points=100)
+    rng = np.random.default_rng(12)
+    fits = [RvFitter.recover_period(RecoverPeriodInput(time, RvFitter.sinfunc(time, 4.0, 2.0, 7.7) +
+                                                       rng.normal(0, 1.0, 100), rv_err, 7.7)) for _ in range(400)]
+    amplitudes, phases = np.array([fit[1] for fit in fits]), np.array([fit[2] for fit in fits])
+    assert np.mean([fit[3] for fit in fits]) == pytest.approx(np.std(amplitudes), rel=0.15)
+    assert np.mean([fit[4] for fit in fits]) == pytest.approx(np.std(phases), rel=0.15)
 
 
 def test_mask_without_mass_removes_the_signal():

@@ -100,6 +100,8 @@ class MATRIX:
     SDE_ROCHE = 2000
     lcbuilder = LcBuilder()
     MIN_SEARCH_PERIOD = 0.5
+    # A sinusoid fit has three free parameters: amplitude, phase and offset
+    MIN_RV_MEASUREMENTS = 4
     DETREND_BIWEIGHT = "biweight"
     DETREND_GP = "gp"
 
@@ -379,6 +381,10 @@ class MATRIX:
             mass_grid = np.linspace(min_mass, max_mass, steps_mass) if mass_grid_geom == "lin" \
                 else np.logspace(np.log10(min_mass), np.log10(max_mass), steps_mass)
         mass_grid = np.round(mass_grid, 2)
+        rv_df = MATRIX.load_rv_file(rv_file)
+        time = rv_df['bjd'].to_numpy()
+        rv = rv_df['rv'].to_numpy()
+        rv_err = rv_df['rv_err'].to_numpy()
         if inject_dir is None:
             inject_dir, object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
         habitability_calculator = HabitabilityCalculator()
@@ -393,10 +399,6 @@ class MATRIX:
                 "Your minimum period is in a shorter orbit than the star radius. The minimum period for this star should be > " + str(
                     round(period_for_rstar, 2)) + ' days')
         inject_models = []
-        rv_df = MATRIX.load_rv_file(rv_file)
-        time = rv_df['bjd'].to_numpy()
-        rv = rv_df['rv'].to_numpy()
-        rv_err = rv_df['rv_err'].to_numpy()
         for period in period_grid:
             for t0 in np.linspace(time[0], time[0] + period, phases + 2)[1:-1]:
                 for mplanet in mass_grid:
@@ -511,13 +513,33 @@ class MATRIX:
             If a column is missing or any ``rv_err`` is not positive.
         """
         rv_df = pd.read_csv(filename)
-        missing_columns = {'bjd', 'rv', 'rv_err'} - set(rv_df.columns)
+        columns = ['bjd', 'rv', 'rv_err']
+        missing_columns = set(columns) - set(rv_df.columns)
         if missing_columns:
             raise ValueError("The RV file " + str(filename) + " lacks the columns " + str(sorted(missing_columns)) +
                              ". It needs bjd, rv and rv_err.")
-        rv_df = rv_df.dropna(subset=['bjd', 'rv', 'rv_err'])
+        for column in columns:
+            values = pd.to_numeric(rv_df[column], errors='coerce')
+            if (values.isna() & rv_df[column].notna()).any():
+                raise ValueError("The column " + column + " of the RV file " + str(filename) +
+                                 " has non-numeric values.")
+            rv_df[column] = values
+        total_rows = len(rv_df)
+        rv_df = rv_df.dropna(subset=columns)
+        if len(rv_df) < total_rows:
+            logging.warning("Dropped %s of %s rows with missing values from the RV file %s",
+                            total_rows - len(rv_df), total_rows, filename)
+        for column in columns:
+            if not np.isfinite(rv_df[column]).all():
+                raise ValueError("The column " + column + " of the RV file " + str(filename) +
+                                 " has infinite values.")
         if (rv_df['rv_err'] <= 0).any():
             raise ValueError("All the rv_err values of " + str(filename) + " must be positive.")
+        if len(rv_df) < MATRIX.MIN_RV_MEASUREMENTS:
+            raise ValueError("The RV file " + str(filename) + " has " + str(len(rv_df)) + " valid rows but needs " +
+                             str(MATRIX.MIN_RV_MEASUREMENTS) + ".")
+        if rv_df['bjd'].min() == rv_df['bjd'].max():
+            raise ValueError("All the bjd values of the RV file " + str(filename) + " are identical.")
         return rv_df.sort_values(by=['bjd'], ascending=True).reset_index(drop=True)
 
     def recovery_rv_periods(self, filename, max_period_search, rv_masks=None, oversampling=1,
@@ -550,9 +572,9 @@ class MATRIX:
         """
         if rv_masks is None:
             rv_masks = {}
+        rv_df = MATRIX.load_rv_file(filename)
         if inject_dir is None:
             inject_dir, object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
-        rv_df = MATRIX.load_rv_file(filename)
         period_grid_size = int((max_period_search - MATRIX.MIN_SEARCH_PERIOD) * 100 * oversampling)
         rv_data, period_grid, k_grid, omega_grid, msin_grid, least_squares_grid, argmax_sde, power, snr, SDE = \
             RvFitter.recover_periods(rv_df, period_grid_geom='log', steps_period=period_grid_size, period_min=0.5,
@@ -617,44 +639,67 @@ class MATRIX:
         oversampling : float, optional
             Oversampling factor for the period grid. Default 3.
         """
-        reports_df = pd.DataFrame(columns=['period', 'mass', 'epoch', 'period_found', 'epoch_found', 'mass_found',
-                                           'found', 'snr', 'sde', 'run'])
+        period_grid_size = int((max_period_search - self.MIN_SEARCH_PERIOD) * 100 * oversampling)
+        scenarios = []
         for file in sorted(os.listdir(inject_dir)):
             file_name_matches = re.search("RV_P([0-9]+\\.*[0-9]*)+_M([0-9]+\\.*[0-9]*)_T([0-9]+\\.*[0-9]*)\\.csv", file)
             if file_name_matches is not None:
-                try:
-                    period = float(file_name_matches[1])
-                    m_planet = float(file_name_matches[2])
-                    epoch = float(file_name_matches[3])
-                    df = pd.read_csv(inject_dir + file, float_precision='round_trip', sep=',',
-                                     usecols=['bjd', 'rv', 'rv_err'])
-                    if len(df) == 0:
-                        found = True
-                        snr = 20
-                        sde = self.SDE_ROCHE
-                        run = 1
-                        mass_found = 20
-                        omega_found = 0
-                        period_found = 0
-                    else:
-                        period_grid_size = int((max_period_search - self.MIN_SEARCH_PERIOD) * 100 * oversampling)
-                        found, run, snr, sde, period_found, omega_found, mass_found = \
-                            RvFitter.recover_signal(df, period, 3, 0.5, rv_masks, self.search_input.star_info.mass, 'log',
-                                                    period_grid_size, self.MIN_SEARCH_PERIOD, max_period_search,
-                                                    snr_threshold, snr_threshold, run_limit)
-                    new_report = {"period": period, "mass": m_planet, "epoch": epoch, "found": found, "snr": snr,
-                                  "sde": sde, "run": run, "mass_found": mass_found,
-                                  "period_found": period_found, "epoch_found": omega_found}
-                    reports_df = pd.concat([reports_df, pd.DataFrame([new_report])], ignore_index=True)
-                    print("RV P=" + str(period) + ", M=" + str(m_planet) + ", T0=" + str(epoch) + ", FOUND WAS " + str(
-                        found) +
-                          " WITH SNR " + str(snr) + " AND SDE " + str(sde))
-                    reports_df = reports_df.sort_values(['period', 'mass', 'epoch'], ascending=[True, True, True])
-                    reports_df.to_csv(inject_dir + "a_rv_report.csv", index=False)
-                except Exception as e:
-                    traceback.print_exc()
-                    print("File not valid: " + file)
+                scenarios.append((os.path.join(inject_dir, file), float(file_name_matches[1]),
+                                  float(file_name_matches[2]), float(file_name_matches[3]), rv_masks,
+                                  self.search_input.star_info.mass, period_grid_size, self.MIN_SEARCH_PERIOD,
+                                  max_period_search, snr_threshold, run_limit))
+        with Pool(processes=self.search_input.cores) as pool:
+            results = pool.map(MATRIX.recover_rv_scenario, scenarios)
+        reports = []
+        failures = []
+        for (file, *_), (report, failure) in zip(scenarios, results):
+            if failure is None:
+                reports.append(report)
+                print("RV P=" + str(report["period"]) + ", M=" + str(report["mass"]) + ", T0=" +
+                      str(report["epoch"]) + ", FOUND WAS " + str(report["found"]) + " WITH SNR " +
+                      str(report["snr"]) + " AND SDE " + str(report["sde"]))
+            else:
+                failures.append(failure)
+                logging.error("RV scenario failed: %s\n%s", file, failure)
+        if len(reports) == 0:
+            raise RuntimeError("All the " + str(len(scenarios)) + " RV scenarios of " + inject_dir +
+                               " failed. The injected files are kept. First error:\n" +
+                               (failures[0] if failures else "No injected RV files were found."))
+        if failures:
+            logging.warning("%s of %s RV scenarios failed and are missing from the results", len(failures),
+                            len(scenarios))
+        reports_df = pd.DataFrame(reports, columns=['period', 'mass', 'epoch', 'period_found', 'epoch_found',
+                                                    'mass_found', 'found', 'snr', 'sde', 'run'])
+        reports_df = reports_df.sort_values(['period', 'mass', 'epoch'], ascending=[True, True, True])
+        reports_df.to_csv(os.path.join(inject_dir, "a_rv_report.csv"), index=False)
         self.remove_non_results_files(inject_dir)
+
+    @staticmethod
+    def recover_rv_scenario(scenario):
+        """Recover the injected signal of a single RV file.
+
+        Parameters
+        ----------
+        scenario : tuple
+            (file, period, mass, epoch, rv_masks, star_mass, period_grid_size, min_period, max_period_search,
+            snr_threshold, run_limit)
+
+        Returns
+        -------
+        tuple
+            (report, failure): the row for the RV report and None, or None and the traceback of the failure.
+        """
+        file, period, m_planet, epoch, rv_masks, star_mass, period_grid_size, min_period, max_period_search, \
+            snr_threshold, run_limit = scenario
+        try:
+            df = pd.read_csv(file, float_precision='round_trip', sep=',', usecols=['bjd', 'rv', 'rv_err'])
+            found, run, snr, sde, period_found, omega_found, mass_found = \
+                RvFitter.recover_signal(df, period, 3, 0.5, rv_masks, star_mass, 'log', period_grid_size, min_period,
+                                        max_period_search, snr_threshold, snr_threshold, run_limit)
+        except Exception:
+            return None, traceback.format_exc()
+        return {"period": period, "mass": m_planet, "epoch": epoch, "found": found, "snr": snr, "sde": sde,
+                "run": run, "mass_found": mass_found, "period_found": period_found, "epoch_found": omega_found}, None
 
     def recovery(self, inject_dir, snr_threshold=5, detrend_method=DETREND_BIWEIGHT, detrend_ws=0,
                  transit_template='tls', run_limit=5, custom_search_algorithm=None, min_period_search=0.5, max_period_search=25,

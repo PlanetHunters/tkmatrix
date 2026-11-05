@@ -2,6 +2,8 @@
 import inspect
 import os
 import re
+import subprocess
+import sys
 from unittest import mock
 
 import astropy.units as u
@@ -132,6 +134,61 @@ def test_invalid_rv_files_are_rejected_with_a_clear_error(matrix, tmp_path, bad)
         frame.to_csv(rv_file, index=False)
     with pytest.raises(ValueError, match="rv_err"):
         inject(matrix, rv_file, phases=1, masses=(5.0, 6.0))
+
+
+@pytest.mark.parametrize("content,message", [
+    ("bjd,rv,rv_err\n", "valid rows"),
+    ("bjd,rv,rv_err\n1,1,1\n2,2,1\n3,3,1\n", "valid rows"),
+    ("bjd,rv,rv_err\n1,inf,1\n2,2,1\n3,3,1\n4,4,1\n", "column rv "),
+    ("bjd,rv,rv_err\n1,1,inf\n2,2,1\n3,3,1\n4,4,1\n", "column rv_err"),
+    ("bjd,rv,rv_err\n1,text,1\n2,2,1\n3,3,1\n4,4,1\n", "column rv "),
+    ("bjd,rv,rv_err\n1,1,1\n1,2,1\n1,3,1\n1,4,1\n", "identical"),
+])
+def test_unusable_rv_files_name_the_problem(tmp_path, content, message):
+    rv_file = tmp_path / "rv.csv"
+    rv_file.write_text(content)
+    with pytest.raises(ValueError, match=message):
+        MATRIX.load_rv_file(str(rv_file))
+
+
+def test_invalid_file_is_reported_before_retrieving_the_object(matrix, tmp_path):
+    rv_file = tmp_path / "rv.csv"
+    rv_file.write_text("bjd,rv\n1,1\n")
+    with pytest.raises(ValueError, match="rv_err"):
+        matrix.recovery_rv_periods(str(rv_file), 12)
+    MATRIX.retrieve_object_data.assert_not_called()
+
+
+def test_when_all_scenarios_fail_the_cause_is_raised_and_the_files_are_kept(matrix, tmp_path):
+    rv_file = str(tmp_path / "rv.csv")
+    write_rv_file(rv_file)
+    inject_dir, _, _ = inject(matrix, rv_file)
+    with mock.patch("tkmatrix.rv.RvFitter.recover_signal", side_effect=ValueError("engine failure")):
+        with pytest.raises(RuntimeError, match="engine failure"):
+            matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1)
+    assert len([name for name in os.listdir(inject_dir) if name.startswith("RV_P")]) == 8
+
+
+def test_partial_failures_are_logged_and_keep_the_other_rows(matrix, tmp_path, caplog):
+    rv_file = str(tmp_path / "rv.csv")
+    write_rv_file(rv_file)
+    inject_dir, _, _ = inject(matrix, rv_file)
+    broken = sorted(name for name in os.listdir(inject_dir) if name.startswith("RV_P"))[0]
+    with open(os.path.join(inject_dir, broken), "w") as file:
+        file.write("not,a,valid,file\n")
+    with caplog.at_level("WARNING"):
+        matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1)
+    assert len(pd.read_csv(os.path.join(inject_dir, "a_rv_report.csv"))) == 7
+    assert "1 of 8 RV scenarios failed" in caplog.text
+    assert broken in caplog.text
+
+
+def test_built_package_contains_ravex_and_its_license(tmp_path):
+    root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    subprocess.run([sys.executable, "setup.py", "-q", "build_py", "--build-lib", str(tmp_path)], cwd=root, check=True,
+                   capture_output=True)
+    assert (tmp_path / "tkmatrix" / "ravex" / "src" / "ravex" / "core.py").exists()
+    assert (tmp_path / "tkmatrix" / "ravex" / "LICENSE").exists()
 
 
 def test_public_signatures_keep_the_contract():
