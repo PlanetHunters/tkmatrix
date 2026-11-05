@@ -138,7 +138,11 @@ RV:
   MAX_MASS:
   STEPS_MASS:
   MASS_GRID_GEOM: 'lin'
+  # Lower limit for the RV period search. Defaults to the global MIN_PERIOD_SEARCH
+  MIN_PERIOD_SEARCH:
   MAX_PERIOD_SEARCH: 25
+  # Relative period difference to count a signal as found. Defaults to the global PERIOD_MATCH_TOLERANCE
+  PERIOD_MATCH_TOLERANCE:
   # Mandatory field where RV measurements are provided
   FILE:
   # Mask known RV signals to make the analysis cleaner

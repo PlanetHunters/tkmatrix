@@ -257,3 +257,7 @@ The properties YAML supports an `RV:` block. When `RV.FILE` is provided, the too
 If the top-level `PHASES` is empty, the photometric stage is skipped and the run is RV-only.
 
 The search weights points by `rv_err`. `SNR` and `SDE` are computed from the square root of the GLS power, so `SNR_THRESHOLD` keeps its meaning. `epoch_found` in `a_rv_report.csv` holds the fitted phase in radians, not an epoch.
+
+`RV.MIN_PERIOD_SEARCH` and `RV.PERIOD_MATCH_TOLERANCE` default to the global `MIN_PERIOD_SEARCH` and `PERIOD_MATCH_TOLERANCE`. The tolerance is relative, and on short baselines it can be finer than the period resolution of the search, which marks strong long-period signals as not found. `a_rv_report.csv` is rewritten at most every `RV_REPORT_SAVE_SECONDS` during recovery.
+
+`plot_results` and `plot_diff` draw one cell around each grid value, and use a log axis for grids closer to geometric than arithmetic.

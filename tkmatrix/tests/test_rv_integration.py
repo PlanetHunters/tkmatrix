@@ -9,6 +9,7 @@ from concurrent.futures.process import BrokenProcessPool
 from unittest import mock
 
 import astropy.units as u
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
@@ -84,11 +85,112 @@ def test_recovery_writes_one_contract_row_per_scenario_and_finds_the_massive_pla
 def test_results_plot_is_written(matrix, tmp_path):
     rv_file = str(tmp_path / "rv.csv")
     write_rv_file(rv_file)
-    # plot_results uses the grid values as bin edges, so it needs at least three of each
-    inject_dir, _, _ = matrix.inject_rv(None, rv_file, 1, 3.0, 8.0, 3, 2.0, 40.0, 3)
+    inject_dir, _, _ = inject(matrix, rv_file, phases=1)
     matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1)
     MATRIX.plot_results("TIC 1", inject_dir, is_rv=True)
     assert os.path.exists(os.path.join(inject_dir, "inj-rec-rv.png"))
+
+
+def write_report(inject_dir, periods, masses, found_cell):
+    rows = [{"period": period, "mass": mass, "found": (period, mass) == found_cell, "sde": 1.0}
+            for period in periods for mass in masses]
+    pd.DataFrame(rows).to_csv(os.path.join(inject_dir, "a_rv_report.csv"), index=False)
+
+
+def plotted_grid(inject_dir):
+    """Runs plot_results and returns the axes, the cell edges and the plotted rates of the heat map."""
+    with mock.patch.object(plt, "close"):
+        MATRIX.plot_results("TIC 1", inject_dir, is_rv=True)
+    axes = plt.gca().figure.axes[0]
+    mesh = axes.collections[0]
+    corners = mesh.get_coordinates()
+    return axes, corners[0, :, 0], corners[:, 0, 1], np.asarray(mesh.get_array()).reshape(corners.shape[0] - 1, -1)
+
+
+@pytest.mark.parametrize("periods, scale", [(np.round(np.logspace(0, 2, 7), 2), "log"),
+                                            (np.linspace(2.0, 14.0, 7), "linear")])
+def test_every_grid_value_owns_the_cell_drawn_around_it(tmp_path, periods, scale):
+    masses = [1.0, 2.0, 3.0, 4.0]
+    write_report(str(tmp_path), periods, masses, (periods[2], masses[1]))
+    axes, x_edges, y_edges, rates = plotted_grid(str(tmp_path))
+    plt.close("all")
+    assert axes.get_xscale() == scale
+    assert axes.get_yscale() == "linear"
+    assert rates.shape == (len(masses), len(periods))
+    assert np.argwhere(rates == 100).tolist() == [[1, 2]]
+    assert x_edges[2] < periods[2] < x_edges[3]
+    assert y_edges[1] < masses[1] < y_edges[2]
+
+
+@pytest.mark.parametrize("planet_period, left_limit", [(5.0, None), (0.5, 0.5)])
+def test_planet_markers_leave_no_margin_around_the_map(tmp_path, planet_period, left_limit):
+    periods = np.round(np.logspace(0, 2, 7), 2)
+    masses = [1.0, 2.0, 3.0, 4.0]
+    write_report(str(tmp_path), periods, masses, (periods[2], masses[1]))
+    planets = pd.DataFrame([{"period": planet_period, "mass": 2.0, "mass_err_bottom": 0.1, "mass_err_up": 0.1}])
+    with mock.patch.object(plt, "close"):
+        MATRIX.plot_results("TIC 1", str(tmp_path), is_rv=True, planets_df=planets)
+    axes = plt.gca().figure.axes[0]
+    edges = axes.collections[0].get_coordinates()[0, :, 0]
+    limits = axes.get_xlim()
+    plt.close("all")
+    assert limits == pytest.approx((left_limit or edges[0], edges[-1]))
+
+
+def test_diff_plot_is_written_for_a_log_grid(tmp_path):
+    periods = np.round(np.logspace(0, 2, 7), 2)
+    for name, found in (("one", True), ("two", False)):
+        os.mkdir(tmp_path / name)
+        rows = [{"period": period, "radius": radius, "found": found, "sde": 1.0}
+                for period in periods for radius in (1.0, 2.0, 3.0)]
+        pd.DataFrame(rows).to_csv(tmp_path / name / "a_tls_report.csv", index=False)
+    MATRIX.plot_diff("TIC 1", str(tmp_path / "one"), str(tmp_path / "two"), str(tmp_path))
+    assert os.path.exists(tmp_path / "inj-rec-diff.png")
+
+
+def test_the_last_grid_values_keep_separate_cells(tmp_path):
+    periods = [2.0, 4.0, 6.0]
+    masses = [1.0, 2.0, 3.0]
+    write_report(str(tmp_path), periods, masses, (6.0, 3.0))
+    rates = plotted_grid(str(tmp_path))[3]
+    plt.close("all")
+    assert rates[-1, -1] == 100
+    assert rates[-1, -2] == 0
+    assert rates[-2, -1] == 0
+
+
+def test_rv_search_settings_reach_the_recovery(matrix, tmp_path):
+    rv_file = str(tmp_path / "rv.csv")
+    write_rv_file(rv_file)
+    inject_dir, _, _ = inject(matrix, rv_file)
+    with mock.patch("tkmatrix.rv.RvFitter.recover_strongest_signal", wraps=RvFitter.recover_strongest_signal) as search:
+        matrix.search_input.cores = 1
+        scenario = (os.path.join(inject_dir, sorted(f for f in os.listdir(inject_dir) if f.startswith("RV_P"))[0]),
+                    3.0, 2.0, 1.0, None, 0.5, 100, 0.7, 12, 5, 1, 0.2)
+        report, failure = MATRIX.recover_rv_scenario(scenario)
+    assert failure is None
+    assert search.call_args.args[2] == 100
+    assert search.call_args.args[3] == 0.7
+    assert report["found"] == (abs(report["period_found"] - 3.0) / 3.0 < 0.2)
+
+
+@pytest.mark.parametrize("settings", [{"min_period_search": 13}, {"min_period_search": 0},
+                                      {"period_match_tolerance": 0}])
+def test_invalid_rv_search_settings_are_rejected_before_searching(matrix, tmp_path, settings):
+    rv_file = str(tmp_path / "rv.csv")
+    write_rv_file(rv_file)
+    inject_dir, _, _ = inject(matrix, rv_file)
+    with pytest.raises(ValueError, match="period"):
+        matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1, **settings)
+
+
+def test_recovery_rv_periods_uses_the_minimum_period(matrix, tmp_path):
+    rv_file = str(tmp_path / "rv.csv")
+    write_rv_file(rv_file)
+    with mock.patch("tkmatrix.tkmatrix_class.RvFitter.recover_periods", wraps=RvFitter.recover_periods) as search:
+        matrix.recovery_rv_periods(rv_file, 12, cores=2, min_period_search=0.8)
+    assert search.call_args.kwargs["period_min"] == 0.8
+    assert search.call_args.kwargs["steps_period"] == int((12 - 0.8) * 100)
 
 
 def test_injected_files_are_removed_unless_preserved(matrix, tmp_path):
@@ -200,10 +302,21 @@ def test_report_is_saved_while_recovery_is_running(matrix, tmp_path):
     write_rv_file(rv_file)
     inject_dir, _, _ = inject(matrix, rv_file)
     saved_rows = []
-    with mock.patch.object(MATRIX, "RV_REPORT_SAVE_INTERVAL", 3), \
+    with mock.patch.object(MATRIX, "RV_REPORT_SAVE_SECONDS", 0), \
             mock.patch.object(MATRIX, "save_rv_report", side_effect=lambda rows, _: saved_rows.append(len(rows))):
         matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1)
-    assert saved_rows == [3, 6, 8]
+    assert saved_rows == [1, 2, 3, 4, 5, 6, 7, 8, 8]
+
+
+def test_report_is_not_rewritten_before_the_save_interval_elapses(matrix, tmp_path):
+    rv_file = str(tmp_path / "rv.csv")
+    write_rv_file(rv_file)
+    inject_dir, _, _ = inject(matrix, rv_file)
+    saved_rows = []
+    with mock.patch.object(MATRIX, "RV_REPORT_SAVE_SECONDS", 3600), \
+            mock.patch.object(MATRIX, "save_rv_report", side_effect=lambda rows, _: saved_rows.append(len(rows))):
+        matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1)
+    assert saved_rows == [8]
 
 
 def test_a_dead_worker_raises_and_keeps_the_finished_rows(matrix, tmp_path, caplog):
@@ -213,10 +326,10 @@ def test_a_dead_worker_raises_and_keeps_the_finished_rows(matrix, tmp_path, capl
     matrix.search_input.cores = 1
     recover_signal = RvFitter.recover_signal
 
-    def kill_on_the_long_period(df, period, *args):
+    def kill_on_the_long_period(df, period, *args, **kwargs):
         if period > 5:
             os.kill(os.getpid(), signal.SIGKILL)
-        return recover_signal(df, period, *args)
+        return recover_signal(df, period, *args, **kwargs)
 
     with mock.patch("tkmatrix.rv.RvFitter.recover_signal", side_effect=kill_on_the_long_period):
         with caplog.at_level("ERROR"), pytest.raises(BrokenProcessPool):
@@ -237,7 +350,7 @@ def test_public_signatures_keep_the_contract():
     assert list(inspect.signature(MATRIX.inject_rv).parameters)[:13] == [
         'self', 'inject_dir', 'rv_file', 'phases', 'min_period', 'max_period', 'steps_period', 'min_mass', 'max_mass',
         'steps_mass', 'period_grid', 'mass_grid', 'period_grid_geom']
-    assert list(inspect.signature(MATRIX.recovery_rv).parameters) == [
+    assert list(inspect.signature(MATRIX.recovery_rv).parameters)[:7] == [
         'self', 'inject_dir', 'rv_masks', 'snr_threshold', 'run_limit', 'max_period_search', 'oversampling']
     assert list(inspect.signature(MATRIX.recovery_rv_periods).parameters)[:6] == [
         'self', 'filename', 'max_period_search', 'rv_masks', 'oversampling', 'cores']

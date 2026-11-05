@@ -13,8 +13,6 @@ except ModuleNotFoundError as error:
     raise ModuleNotFoundError("The ravex submodule is missing. Run `git submodule update --init --recursive`.",
                               name=error.name) from error
 
-# The periodogram search has always started here, whatever `period_min` is given. Kept for compatibility.
-SEARCH_MIN_PERIOD = 0.4
 SEARCH_SAMPLES_PER_PEAK = 10
 # The GLS search does not depend on the stellar mass, so a single system serves every recovery.
 SEARCH_SYSTEM = MultiPlanetSystem(1 * u.M_sun, [])
@@ -177,7 +175,8 @@ class RvFitter:
 
     @staticmethod
     def recover_signal(rv_df, period, msin, omega, rv_masks, star_mass, period_grid_geom='lin', steps_period=None,
-                       period_min=0.5, max_period=None, min_snr=5, min_sde=5, max_runs=5, cpus=os.cpu_count() - 1):
+                       period_min=0.5, max_period=None, min_snr=5, min_sde=5, max_runs=5, cpus=os.cpu_count() - 1,
+                       period_match_tolerance=0.01):
         """Iteratively recover a known injected RV signal.
 
         Parameters
@@ -210,6 +209,8 @@ class RvFitter:
             Maximum number of recovery runs. Defaults to 5.
         cpus : int, optional
             Number of CPUs. Defaults to os.cpu_count() - 1.
+        period_match_tolerance : float, optional
+            Relative period difference below which the signal counts as found. Defaults to 0.01.
 
         Returns
         -------
@@ -229,7 +230,7 @@ class RvFitter:
                 RvFitter.recover_strongest_signal(df, period_grid_geom, steps_period, period_min, max_period, rv_masks,
                                          star_mass, cpus)
             period_diff = numpy.abs(period - signal_period)
-            found = period_diff / period < 0.01
+            found = period_diff / period < period_match_tolerance
             if found or snr < min_snr or SDE < min_sde:
                 break
             else:
@@ -433,7 +434,7 @@ class RvFitter:
         time = rv_df["bjd"].to_numpy()
         rv_err = rv_df["rv_err"].to_numpy()
         rv_data = RvFitter.mask_signals(rv_df, rv_masks, star_mass)
-        recovered = SEARCH_SYSTEM.recover_periodic_signal(time, rv_data, rv_err, min_period=SEARCH_MIN_PERIOD,
+        recovered = SEARCH_SYSTEM.recover_periodic_signal(time, rv_data, rv_err, min_period=period_min,
                                                           max_period=max_period,
                                                           samples_per_peak=SEARCH_SAMPLES_PER_PEAK)
         period_grid = recovered['period_grid_days']

@@ -8,6 +8,7 @@ import traceback
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import Pool
 from pathlib import Path
+from time import monotonic
 
 import lightkurve
 import numpy as np
@@ -18,7 +19,7 @@ from lcbuilder.lcbuilder_class import LcBuilder
 import wotan
 from lcbuilder.star.HabitabilityCalculator import HabitabilityCalculator
 from lcbuilder.star.starinfo import StarInfo
-from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import FormatStrFormatter, NullLocator
 from foldedleastsquares import transitleastsquares
 from foldedleastsquares import transit_mask, cleaned_array
 import astropy.units as u
@@ -103,7 +104,7 @@ class MATRIX:
     MIN_SEARCH_PERIOD = 0.5
     # A sinusoid fit has three free parameters: amplitude, phase and offset
     MIN_RV_MEASUREMENTS = 4
-    RV_REPORT_SAVE_INTERVAL = 50
+    RV_REPORT_SAVE_SECONDS = 60
     DETREND_BIWEIGHT = "biweight"
     DETREND_GP = "gp"
 
@@ -545,7 +546,7 @@ class MATRIX:
         return rv_df.sort_values(by=['bjd'], ascending=True).reset_index(drop=True)
 
     def recovery_rv_periods(self, filename, max_period_search, rv_masks=None, oversampling=1,
-                            cores=os.cpu_count() - 1, inject_dir=None):
+                            cores=os.cpu_count() - 1, inject_dir=None, min_period_search=MIN_SEARCH_PERIOD):
         """Run RV period recovery on the original RV data file.
 
         Performs Lomb-Scargle periodogram analysis on the RV data, masks known
@@ -566,6 +567,8 @@ class MATRIX:
             Number of CPU cores. Default ``os.cpu_count() - 1``.
         inject_dir : str, optional
             Directory to store the plot. If None, the object data is retrieved and a new directory is created.
+        min_period_search : float, optional
+            Minimum period to search in days. Default ``MIN_SEARCH_PERIOD``.
 
         Returns
         -------
@@ -577,9 +580,9 @@ class MATRIX:
         rv_df = MATRIX.load_rv_file(filename)
         if inject_dir is None:
             inject_dir, object_info, lc_build, self.search_input = MATRIX.retrieve_object_data(self.search_input)
-        period_grid_size = int((max_period_search - MATRIX.MIN_SEARCH_PERIOD) * 100 * oversampling)
+        period_grid_size = int((max_period_search - min_period_search) * 100 * oversampling)
         rv_data, period_grid, k_grid, omega_grid, msin_grid, least_squares_grid, argmax_sde, power, snr, SDE = \
-            RvFitter.recover_periods(rv_df, period_grid_geom='log', steps_period=period_grid_size, period_min=0.5,
+            RvFitter.recover_periods(rv_df, period_grid_geom='log', steps_period=period_grid_size, period_min=min_period_search,
                                      max_period=max_period_search, rv_masks=rv_masks, star_mass=self.search_input.star_info.mass,
                                      cpus=cores)
         positive_power_mask = power > np.percentile(power, 1)
@@ -591,11 +594,11 @@ class MATRIX:
         least_squares_grid = np.array(least_squares_grid)[positive_power_mask]
         fig, axs = plt.subplots(5, 1, figsize=(20, 12))
         lc = lightkurve.LightCurve(time=rv_df['bjd'], flux=rv_df['rv'])
-        periodogram = lc.to_periodogram(oversample_factor=10, maximum_period=max_period_search, minimum_period=0.5)
+        periodogram = lc.to_periodogram(oversample_factor=10, maximum_period=max_period_search, minimum_period=min_period_search)
         axs[0] = periodogram.plot(ax=axs[0], color='blue', scale='log')
         axs[0].set_title("Initial LSP")
         lc = lightkurve.LightCurve(time=rv_df['bjd'], flux=rv_data)
-        periodogram = lc.to_periodogram(oversample_factor=10, maximum_period=max_period_search, minimum_period=0.5)
+        periodogram = lc.to_periodogram(oversample_factor=10, maximum_period=max_period_search, minimum_period=min_period_search)
         axs[1] = periodogram.plot(ax=axs[1], color='blue', scale='log')
         axs[1].set_title("Masked planets LSP")
         bin_means_msin = binned_statistic(period_grid, msin_grid, bins=50)[0]
@@ -620,7 +623,8 @@ class MATRIX:
         plt.close()
         return inject_dir
 
-    def recovery_rv(self, inject_dir, rv_masks=None, snr_threshold=5, run_limit=3, max_period_search=25, oversampling=3):
+    def recovery_rv(self, inject_dir, rv_masks=None, snr_threshold=5, run_limit=3, max_period_search=25, oversampling=3,
+                    min_period_search=MIN_SEARCH_PERIOD, period_match_tolerance=0.01):
         """Recover injected RV planet signals from all CSV files in the injection directory.
 
         Iterates over injected RV CSV files, runs :meth:`RvFitter.recover_signal`
@@ -640,18 +644,29 @@ class MATRIX:
             Maximum period to search in days. Default 25.
         oversampling : float, optional
             Oversampling factor for the period grid. Default 3.
+        min_period_search : float, optional
+            Minimum period to search in days. Default ``MIN_SEARCH_PERIOD``.
+        period_match_tolerance : float, optional
+            Relative period difference below which an injected signal counts as found. Default 0.01.
         """
-        period_grid_size = int((max_period_search - self.MIN_SEARCH_PERIOD) * 100 * oversampling)
+        if not 0 < min_period_search < max_period_search:
+            raise ValueError("The minimum search period must be positive and below the maximum one, but they are " +
+                             str(min_period_search) + " and " + str(max_period_search) + ".")
+        if period_match_tolerance <= 0:
+            raise ValueError("The period match tolerance must be positive, but it is " +
+                             str(period_match_tolerance) + ".")
+        period_grid_size = int((max_period_search - min_period_search) * 100 * oversampling)
         scenarios = []
         for file in sorted(os.listdir(inject_dir)):
             file_name_matches = re.search("RV_P([0-9]+\\.*[0-9]*)+_M([0-9]+\\.*[0-9]*)_T([0-9]+\\.*[0-9]*)\\.csv", file)
             if file_name_matches is not None:
                 scenarios.append((os.path.join(inject_dir, file), float(file_name_matches[1]),
                                   float(file_name_matches[2]), float(file_name_matches[3]), rv_masks,
-                                  self.search_input.star_info.mass, period_grid_size, self.MIN_SEARCH_PERIOD,
-                                  max_period_search, snr_threshold, run_limit))
+                                  self.search_input.star_info.mass, period_grid_size, min_period_search,
+                                  max_period_search, snr_threshold, run_limit, period_match_tolerance))
         reports = []
         failures = []
+        last_save = monotonic()
         # Unlike a Pool, this executor raises if a worker dies. Results are saved as they come, to survive interruptions.
         try:
             with ProcessPoolExecutor(max_workers=self.search_input.cores) as executor:
@@ -661,8 +676,9 @@ class MATRIX:
                         print("RV P=" + str(report["period"]) + ", M=" + str(report["mass"]) + ", T0=" +
                               str(report["epoch"]) + ", FOUND WAS " + str(report["found"]) + " WITH SNR " +
                               str(report["snr"]) + " AND SDE " + str(report["sde"]))
-                        if len(reports) % MATRIX.RV_REPORT_SAVE_INTERVAL == 0:
+                        if monotonic() - last_save >= MATRIX.RV_REPORT_SAVE_SECONDS:
                             MATRIX.save_rv_report(reports, inject_dir)
+                            last_save = monotonic()
                     else:
                         failures.append(failure)
                         logging.error("RV scenario failed: %s\n%s", file, failure)
@@ -706,7 +722,7 @@ class MATRIX:
         ----------
         scenario : tuple
             (file, period, mass, epoch, rv_masks, star_mass, period_grid_size, min_period, max_period_search,
-            snr_threshold, run_limit)
+            snr_threshold, run_limit, period_match_tolerance)
 
         Returns
         -------
@@ -714,12 +730,13 @@ class MATRIX:
             (report, failure): the row for the RV report and None, or None and the traceback of the failure.
         """
         file, period, m_planet, epoch, rv_masks, star_mass, period_grid_size, min_period, max_period_search, \
-            snr_threshold, run_limit = scenario
+            snr_threshold, run_limit, period_match_tolerance = scenario
         try:
             df = pd.read_csv(file, float_precision='round_trip', sep=',', usecols=['bjd', 'rv', 'rv_err'])
             found, run, snr, sde, period_found, omega_found, mass_found = \
                 RvFitter.recover_signal(df, period, 3, 0.5, rv_masks, star_mass, 'log', period_grid_size, min_period,
-                                        max_period_search, snr_threshold, snr_threshold, run_limit)
+                                        max_period_search, snr_threshold, snr_threshold, run_limit,
+                                        period_match_tolerance=period_match_tolerance)
         except Exception:
             return None, traceback.format_exc()
         return {"period": period, "mass": m_planet, "epoch": epoch, "found": found, "snr": snr, "sde": sde,
@@ -998,6 +1015,77 @@ class MATRIX:
         return planets_df
 
     @staticmethod
+    def is_log_grid(grid):
+        """Tells whether a grid is closer to a geometric sequence than to an arithmetic one.
+
+        Parameters
+        ----------
+        grid : numpy.ndarray
+            Sorted, positive grid values.
+
+        Returns
+        -------
+        bool
+            True if the steps of the logarithm of the grid are the most regular ones.
+        """
+        def irregularity(steps):
+            return np.std(steps) / np.mean(steps)
+
+        return len(grid) > 2 and irregularity(np.diff(np.log(grid))) < irregularity(np.diff(grid))
+
+    @staticmethod
+    def grid_cell_edges(grid):
+        """Computes the edges of the plot cells, so that every grid value gets a cell of its own around it.
+
+        Parameters
+        ----------
+        grid : numpy.ndarray
+            Sorted, positive grid values, at least two of them.
+
+        Returns
+        -------
+        numpy.ndarray
+            The ``len(grid) + 1`` edges, halfway between values in the scale of the grid.
+        """
+        values = np.log(grid) if MATRIX.is_log_grid(grid) else np.asarray(grid, dtype=float)
+        middles = (values[:-1] + values[1:]) / 2
+        edges = np.concatenate(([values[0] - (middles[0] - values[0])], middles,
+                                [values[-1] + (values[-1] - middles[-1])]))
+        return np.exp(edges) if MATRIX.is_log_grid(grid) else edges
+
+    @staticmethod
+    def format_grid_axes(ax, period_grid, radius_grid, xticks=None, yticks=None):
+        """Sets the scale of both axes from their grids, and their ticks.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            The axes of the results plot.
+        period_grid : numpy.ndarray
+            The sorted period grid.
+        radius_grid : numpy.ndarray
+            The sorted radius or mass grid.
+        xticks : list, optional
+            The fixed ticks of the period axis.
+        yticks : list, optional
+            The fixed ticks of the radius or mass axis.
+        """
+        for axis, set_scale, grid, ticks in ((ax.xaxis, ax.set_xscale, period_grid, xticks),
+                                             (ax.yaxis, ax.set_yscale, radius_grid, yticks)):
+            if MATRIX.is_log_grid(grid):
+                set_scale('log')
+                axis.set_minor_locator(NullLocator())
+                axis.set_major_formatter(FormatStrFormatter('%.3g'))
+                axis.set_ticks(np.geomspace(grid[0], grid[-1], 6) if ticks is None else ticks)
+            elif ticks is not None:
+                axis.set_ticks(ticks)
+        if xticks is None and not MATRIX.is_log_grid(period_grid):
+            period_ticks_decimals = MATRIX.num_of_zeros(period_grid[-1] - period_grid[0]) + 1
+            plot_bins = 10 if 10 < len(period_grid) else len(period_grid)
+            ax.locator_params(axis="x", nbins=plot_bins)
+            ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
+
+    @staticmethod
     def plot_results(object_id, inject_dir, binning=1, xticks=None, yticks=None, is_rv=False, planets_df=None):
         """
         Generates a heat map with the found/not found results for the period/radius grids
@@ -1017,18 +1105,15 @@ class MATRIX:
         column_units = 'R' if not is_rv else 'M'
         df = pd.read_csv(inject_dir + filename, float_precision='round_trip', sep=',',
                          usecols=['period', column, 'found', 'sde'])
-        min_period = df["period"].min()
-        max_period = df["period"].max()
         phases = len(df[df["period"] == df["period"].min()][df[column] == df[column].min()])
         phases_str = "phase" if phases == 1 else "phases"
-        period_grid = df['period'].unique()
-        radius_grid = df[column].unique()
-        bins = [period_grid, radius_grid]
+        period_grid = np.sort(df['period'].unique())
+        radius_grid = np.sort(df[column].unique())
+        bins = [MATRIX.grid_cell_edges(period_grid), MATRIX.grid_cell_edges(radius_grid)]
         # period_grid_means, edges, binnum = binned_statistic(np.arange(0, len(period_grid)), period_grid,
         #                                                     statistic='mean', bins=len(period_grid) // binning)
         # radius_grid_means, edges, binnum = binned_statistic(np.arange(0, len(radius_grid)), radius_grid,
         #                                                     statistic='mean', bins=len(radius_grid) // binning)
-        bins = [period_grid, radius_grid]
         h1, x, y = np.histogram2d(df['period'][df['found'] == 1], df[column][df['found'] == 1], bins=bins)
         h2, x, y = np.histogram2d(df['period'][df['found'] == 0], df[column][df['found'] == 0], bins=bins)
         tot = h1 + h2
@@ -1036,16 +1121,13 @@ class MATRIX:
         tot_s = uniform_filter1d(tot.astype(float), axis=0, size=binning, mode="nearest")
         normed_hist = 100.0 * h1_s / tot_s
         fig, ax = plt.subplots(figsize=(2.7 * 5, 5))
-        im = plt.imshow(normed_hist.T, origin='lower', extent=(x[0], x[-1], y[0], y[-1]), interpolation='none',
-                        aspect='auto', cmap='magma', vmin=0, vmax=100, rasterized=True)
+        im = ax.pcolormesh(x, y, normed_hist.T, cmap='magma', vmin=0, vmax=100, rasterized=True)
         cbar = plt.colorbar(im)
         cbar.set_label(label='Recovery rate (%)', size=22)
         cbar.ax.tick_params(labelsize=18)
 
         # Regions
-        x_centers = 0.5 * (x[:-1] + x[1:])
-        y_centers = 0.5 * (y[:-1] + y[1:])
-        Xc, Yc = np.meshgrid(x_centers, y_centers)
+        Xc, Yc = np.meshgrid(period_grid, radius_grid)
         contour_levels = [50]
         contour_levels1 = [5]
         contour_levels2 = [95]
@@ -1059,15 +1141,7 @@ class MATRIX:
         plt.xlabel('Injected period (days)', fontsize=22)
         plt.ylabel(r'Injected ' + ('radius' if not is_rv else 'mass') + ' (' + column_units + '$_\oplus$)', fontsize=22)
         #ax.set_title(object_id + " - I&R (" + str(phases) + " " + phases_str + ")", fontsize=24)
-        if xticks is not None:
-            plt.xticks(xticks)
-        else:
-            period_ticks_decimals = MATRIX.num_of_zeros(max_period - min_period) + 1
-            plot_bins = 10 if 10 < len(period_grid) else len(period_grid)
-            plt.locator_params(axis="x", nbins=plot_bins)
-            ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
-        if yticks is not None:
-            plt.xticks(yticks)
+        MATRIX.format_grid_axes(ax, period_grid, radius_grid, xticks, yticks)
         ax.tick_params(axis='both', which='major', labelsize=22)
         if planets_df is not None:
             for index, row in planets_df.iterrows():
@@ -1076,6 +1150,9 @@ class MATRIX:
                 ax.errorbar([row['period']], [row[column]],
                             yerr=[np.full(1, row[column + '_err_bottom']), np.full(1, row[column + '_err_up'])],
                             fmt='o', color=color, mec=border_color, markersize=12, capsize=5)
+            # The markers trigger an autoscale. Fit the heat map again, keeping any planet outside of the grid in view.
+            ax.set_xlim(min(x[0], planets_df['period'].min()), max(x[-1], planets_df['period'].max()))
+            ax.set_ylim(min(y[0], planets_df[column].min()), max(y[-1], planets_df[column].max()))
         plt.savefig(inject_dir + '/inj-rec' + ('-rv' if is_rv else '') + '.png', bbox_inches='tight', dpi=200)
         plt.close()
 
@@ -1096,13 +1173,11 @@ class MATRIX:
                          usecols=['period', 'radius', 'found', 'sde'])
         df2 = pd.read_csv(inject_dir2 + '/a_tls_report.csv', float_precision='round_trip', sep=',',
                          usecols=['period', 'radius', 'found', 'sde'])
-        min_period = df1["period"].min()
-        max_period = df1["period"].max()
         phases = len(df1[df1["period"] == df1["period"].min()][df1["radius"] == df1["radius"].min()])
         phases_str = "phase" if phases == 1 else "phases"
-        period_grid = df1['period'].unique()
-        radius_grid = df1['radius'].unique()
-        bins = [period_grid, radius_grid]
+        period_grid = np.sort(df1['period'].unique())
+        radius_grid = np.sort(df1['radius'].unique())
+        bins = [MATRIX.grid_cell_edges(period_grid), MATRIX.grid_cell_edges(radius_grid)]
         h11, x1, y1 = np.histogram2d(df1['period'][df1['found'] == 1], df1['radius'][df1['found'] == 1], bins=bins)
         h12, x1, y1 = np.histogram2d(df1['period'][df1['found'] == 0], df1['radius'][df1['found'] == 0], bins=bins)
         h21, x2, y2 = np.histogram2d(df2['period'][df2['found'] == 1], df2['radius'][df2['found'] == 1], bins=bins)
@@ -1113,23 +1188,14 @@ class MATRIX:
         normed_hist2 = phases * h21 / (h21 + h22)
         normed_hist = normed_hist1 - normed_hist2
         fig, ax = plt.subplots(figsize=(2.7 * 5, 5))
-        im = plt.imshow(normed_hist.T, origin='lower', extent=(x1[0], x1[-1], y1[0], y1[-1]), interpolation='none',
-                        aspect='auto', cmap='viridis', vmin=-phases, vmax=phases, rasterized=True)
+        im = ax.pcolormesh(x1, y1, normed_hist.T, cmap='viridis', vmin=-phases, vmax=phases, rasterized=True)
         cbar = plt.colorbar(im)
         cbar.set_label(label='# Found samples diff.', size=16)
         cbar.ax.tick_params(labelsize=14)
         plt.xlabel('Injected period (days)', fontsize=18)
         plt.ylabel(r'Injected radius (R$_\oplus$)', fontsize=18)
         ax.set_title(object_id + " - P/R recovery diff(" + str(phases) + " " + phases_str + ")", fontsize=24)
-        if xticks is not None:
-            plt.xticks(xticks)
-        else:
-            period_ticks_decimals = MATRIX.num_of_zeros(max_period - min_period) + 1
-            plot_bins = 10 if 10 < len(period_grid) else len(period_grid)
-            plt.locator_params(axis="x", nbins=plot_bins)
-            ax.xaxis.set_major_formatter(FormatStrFormatter('%.' + str(period_ticks_decimals) + 'f'))
-        if yticks is not None:
-            plt.xticks(yticks)
+        MATRIX.format_grid_axes(ax, period_grid, radius_grid, xticks, yticks)
         ax.tick_params(axis='both', which='major', labelsize=14)
         plt.savefig(output_dir + '/inj-rec-diff.png', bbox_inches='tight', dpi=200)
         plt.close()

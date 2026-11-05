@@ -206,3 +206,24 @@ def test_found_does_not_depend_on_the_thresholds():
                                              SEARCH_MAX_PERIOD, 1000, 1000, 3)
     assert found
     assert run == 0
+
+
+@pytest.mark.parametrize("period_min, expected", [(0.4, 0.45), (0.5, None)])
+def test_search_starts_at_the_given_minimum_period(period_min, expected):
+    time, noise, rv_err = series(points=200, noise=0.2)
+    rv = noise + 5.0 * np.sin(2 * np.pi * time / 0.45)
+    strongest = RvFitter.recover_strongest_signal(frame(time, rv, rv_err), 'log', 1000, period_min, SEARCH_MAX_PERIOD,
+                                                  [], MSTAR)[1]
+    assert strongest >= period_min
+    if expected is not None:
+        assert strongest == pytest.approx(expected, rel=0.001)
+
+
+@pytest.mark.parametrize("tolerance, found", [(0.01, False), (0.05, True)])
+def test_found_uses_the_period_match_tolerance(tolerance, found):
+    time, noise, rv_err = series(noise=0.2)
+    rv = noise + 5.0 * np.sin(2 * np.pi * time / 5.15)
+    result = RvFitter.recover_signal(frame(time, rv, rv_err), 5.0, 3, 0.5, [], MSTAR, 'log', 1000, 0.5,
+                                     SEARCH_MAX_PERIOD, 5, 5, 1, period_match_tolerance=tolerance)
+    assert result[0] == found
+    assert result[4] == pytest.approx(5.15, rel=0.005)
