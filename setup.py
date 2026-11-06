@@ -2,7 +2,7 @@ import setuptools
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
-version = "0.14.0"
+version = "0.15.0"
 import subprocess
 import shutil
 import os
