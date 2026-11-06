@@ -14,6 +14,8 @@ except ModuleNotFoundError as error:
                               name=error.name) from error
 
 SEARCH_SAMPLES_PER_PEAK = 10
+# The same false alarm probability limit as the ravex detectability maps.
+DEFAULT_FAP_THRESHOLD = 0.01
 # The GLS search does not depend on the stellar mass, so a single system serves every recovery.
 SEARCH_SYSTEM = MultiPlanetSystem(1 * u.M_sun, [])
 
@@ -176,7 +178,7 @@ class RvFitter:
     @staticmethod
     def recover_signal(rv_df, period, msin, omega, rv_masks, star_mass, period_grid_geom='lin', steps_period=None,
                        period_min=0.5, max_period=None, min_snr=5, min_sde=5, max_runs=5, cpus=os.cpu_count() - 1,
-                       period_match_tolerance=0.01):
+                       period_match_tolerance=0.01, fap_threshold=DEFAULT_FAP_THRESHOLD):
         """Iteratively recover a known injected RV signal.
 
         Parameters
@@ -211,11 +213,13 @@ class RvFitter:
             Number of CPUs. Defaults to os.cpu_count() - 1.
         period_match_tolerance : float, optional
             Relative period difference below which the signal counts as found. Defaults to 0.01.
+        fap_threshold : float, optional
+            False alarm probability below which a matching peak counts as found. Defaults to 0.01.
 
         Returns
         -------
         tuple
-            (found, run, snr, SDE, signal_period, signal_omega, signal_msin)
+            (found, run, snr, SDE, signal_period, signal_omega, signal_msin, fap)
         """
         df = rv_df.copy()
         sde = numpy.inf
@@ -225,18 +229,21 @@ class RvFitter:
         signal_k = 0
         signal_omega = 0
         signal_msin = 0
+        fap = 1
         for run in numpy.arange(0, max_runs):
-            rv_data, signal_period, signal_k, signal_omega, signal_msin, least_squares_grid, argmax, power, snr, SDE = \
-                RvFitter.recover_strongest_signal(df, period_grid_geom, steps_period, period_min, max_period, rv_masks,
+            rv_data, signal_period, signal_k, signal_omega, signal_msin, least_squares_grid, argmax, power, snr, SDE, \
+                fap = RvFitter.recover_strongest_signal(df, period_grid_geom, steps_period, period_min, max_period, rv_masks,
                                          star_mass, cpus)
             period_diff = numpy.abs(period - signal_period)
-            found = period_diff / period < period_match_tolerance
-            if found or snr < min_snr or SDE < min_sde:
+            period_hit = period_diff / period < period_match_tolerance
+            found = period_hit and fap < fap_threshold
+            # Going on after a matching peak would subtract the injected signal itself.
+            if period_hit or snr < min_snr or SDE < min_sde:
                 break
             else:
                 rv_fit = RvFitter.sinfunc(df["bjd"], signal_k, signal_omega, signal_period)
                 df["rv"] = df["rv"] - rv_fit
-        return found, run, snr, SDE, signal_period, signal_omega, signal_msin
+        return found, run, snr, SDE, signal_period, signal_omega, signal_msin, fap
 
     @staticmethod
     def fit_phase_for_amplitude(angle, rv_data, rv_err, k):
@@ -423,7 +430,7 @@ class RvFitter:
         -------
         tuple
             (rv_data, strongest_period, k, omega, msin, least_squares,
-             argmax_sde, power, snr, sde)
+             argmax_sde, power, snr, sde, fap)
         """
         if rv_masks is None:
             rv_masks = []
@@ -450,7 +457,7 @@ class RvFitter:
         indexes_around = numpy.argwhere((period_grid > strongest_period - snr_window_size / 2) &
                                         (period_grid < strongest_period + snr_window_size / 2)).flatten()
         snr = power[argmax_sde] / numpy.nanmedian(power[indexes_around])
-        return rv_data, strongest_period, k, omega, msin, least_squares, argmax_sde, power, snr, sde
+        return rv_data, strongest_period, k, omega, msin, least_squares, argmax_sde, power, snr, sde, recovered['FAP']
 
     @staticmethod
     def mask_signals(rv_df, rv_masks, star_mass):

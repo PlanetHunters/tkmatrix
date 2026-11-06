@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from os import path
 from lcbuilder.star.starinfo import StarInfo
 import importlib.util
+from tkmatrix.rv import DEFAULT_FAP_THRESHOLD
 from tkmatrix.tkmatrix_class import MATRIX
 import datetime
 from pathlib import Path
@@ -186,6 +187,9 @@ if __name__ == '__main__':
         rv_period_match_tolerance = rv.get('PERIOD_MATCH_TOLERANCE')
         if rv_period_match_tolerance is None:
             rv_period_match_tolerance = period_match_tolerance
+        rv_fap_threshold = rv.get('FAP_THRESHOLD')
+        if rv_fap_threshold is None:
+            rv_fap_threshold = DEFAULT_FAP_THRESHOLD
         inject_dir = ir.recovery_rv_periods(rv['FILE'], rv["MAX_PERIOD_SEARCH"],
                                             rv['INITIAL_MASK'] if 'INITIAL_MASK' in rv else None,
                                             rv['OVERSAMPLING'] if 'OVERSAMPLING' in rv else 1,
@@ -200,7 +204,8 @@ if __name__ == '__main__':
             ir.recovery_rv(inject_dir, rv['INITIAL_MASK'] if 'INITIAL_MASK' in rv else None,
                            rv['SNR_THRESHOLD'], rv['RUN_LIMIT'],
                            rv['MAX_PERIOD_SEARCH'], rv['OVERSAMPLING'] if 'OVERSAMPLING' in rv else 1,
-                           min_period_search=rv_min_period_search, period_match_tolerance=rv_period_match_tolerance)
+                           min_period_search=rv_min_period_search, period_match_tolerance=rv_period_match_tolerance,
+                           fap_threshold=rv_fap_threshold)
             ir.plot_results(target, inject_dir, is_rv=True, planets_df=planets_df)
     if matrix_user_properties["PHASES"] is not None:
         inject_dir, period_grid, radius_grid = ir.inject(matrix_user_properties["PHASES"],

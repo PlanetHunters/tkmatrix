@@ -5,7 +5,9 @@ import pytest
 import astropy.units as u
 import lightkurve
 
-from tkmatrix.rv import RecoverPeriodInput, RvFitter
+from unittest import mock
+
+from tkmatrix.rv import RecoverPeriodInput, RvFitter, SEARCH_SAMPLES_PER_PEAK, SEARCH_SYSTEM
 
 MSTAR = 0.5
 SEARCH_MAX_PERIOD = 25.0
@@ -155,8 +157,9 @@ def test_strongest_signal_keeps_tuple_shape_and_finds_the_period():
     k, period = 4.0, 6.3
     result = RvFitter.recover_strongest_signal(frame(time, RvFitter.sinfunc(time, k, 1.0, period) + noise, rv_err),
                                                max_period=SEARCH_MAX_PERIOD, star_mass=MSTAR)
-    assert len(result) == 10
-    rv_data, found_period, found_k, omega, msin, chi2, argmax, power, snr, sde = result
+    assert len(result) == 11
+    rv_data, found_period, found_k, omega, msin, chi2, argmax, power, snr, sde, fap = result
+    assert fap < 0.01
     assert found_period == pytest.approx(period, rel=0.01)
     assert found_k == pytest.approx(k, rel=0.2)
     assert msin == pytest.approx(RvFitter.compute_mmin_from_semiamplitude([found_period], [found_k], MSTAR)[0])
@@ -168,8 +171,8 @@ def test_snr_and_sde_keep_the_amplitude_periodogram_scale(seed):
     """With equal errors the weighted search must match lightkurve's amplitude statistics."""
     time, noise, rv_err = series(seed=seed)
     rv = noise + RvFitter.sinfunc(time, 1.0, 1.0, 6.3)
-    *_, snr, sde = RvFitter.recover_strongest_signal(frame(time, rv, rv_err), max_period=SEARCH_MAX_PERIOD,
-                                                     star_mass=MSTAR)
+    *_, snr, sde, _ = RvFitter.recover_strongest_signal(frame(time, rv, rv_err), max_period=SEARCH_MAX_PERIOD,
+                                                        star_mass=MSTAR)
     periodogram = lightkurve.LightCurve(time=time, flux=rv - rv.mean()).to_periodogram(
         oversample_factor=10, minimum_period=0.4, maximum_period=SEARCH_MAX_PERIOD)
     periods, power = periodogram.period.value, periodogram.power.value
@@ -183,7 +186,7 @@ def test_snr_and_sde_keep_the_amplitude_periodogram_scale(seed):
 def test_recover_signal_prewhitens_a_stronger_unrelated_signal():
     time, noise, rv_err = series(points=120)
     rv = RvFitter.sinfunc(time, 12.0, 0.4, 2.77) + RvFitter.sinfunc(time, 3.0, 1.0, 9.1) + noise
-    found, run, snr, sde, period, omega, msin = RvFitter.recover_signal(
+    found, run, snr, sde, period, omega, msin, fap = RvFitter.recover_signal(
         frame(time, rv, rv_err), 9.1, 3, 0.5, None, MSTAR, 'log', 100, 0.5, SEARCH_MAX_PERIOD, 5, 5, 3)
     assert found
     assert run == 1
@@ -227,3 +230,54 @@ def test_found_uses_the_period_match_tolerance(tolerance, found):
                                      SEARCH_MAX_PERIOD, 5, 5, 1, period_match_tolerance=tolerance)
     assert result[0] == found
     assert result[4] == pytest.approx(5.15, rel=0.005)
+
+
+def test_strongest_signal_reports_the_ravex_fap():
+    time, noise, rv_err = series()
+    rv = noise + RvFitter.sinfunc(time, 0.5, 1.0, 6.3)
+    fap = RvFitter.recover_strongest_signal(frame(time, rv, rv_err), 'log', 1000, 0.5, SEARCH_MAX_PERIOD, [], MSTAR)[-1]
+    expected = SEARCH_SYSTEM.recover_periodic_signal(time, rv, rv_err, min_period=0.5, max_period=SEARCH_MAX_PERIOD,
+                                                     samples_per_peak=SEARCH_SAMPLES_PER_PEAK)['FAP']
+    assert fap == expected
+
+
+def search_result(period, fap):
+    return np.zeros(3), period, 1.0, 0.0, 1.0, 1.0, 0, np.ones(3), 100.0, 100.0, fap
+
+
+@pytest.mark.parametrize("fap, threshold, found", [(0.009, 0.01, True), (0.01, 0.01, False), (0.05, 0.01, False),
+                                                   (0.05, 0.1, True)])
+def test_found_needs_the_period_and_a_fap_below_the_threshold(fap, threshold, found):
+    time, noise, rv_err = series()
+    with mock.patch.object(RvFitter, "recover_strongest_signal", return_value=search_result(5.0, fap)):
+        result = RvFitter.recover_signal(frame(time, noise, rv_err), 5.0, 3, 0.5, [], MSTAR, 'log', 100, 0.5,
+                                         SEARCH_MAX_PERIOD, 5, 5, 1, fap_threshold=threshold)
+    assert result[0] == found
+    assert result[-1] == fap
+
+
+def test_a_low_fap_does_not_replace_the_period_match():
+    time, noise, rv_err = series()
+    with mock.patch.object(RvFitter, "recover_strongest_signal", return_value=search_result(9.0, 1e-9)):
+        assert not RvFitter.recover_signal(frame(time, noise, rv_err), 5.0, 3, 0.5, [], MSTAR, 'log', 100, 0.5,
+                                           SEARCH_MAX_PERIOD, 5, 5, 1)[0]
+
+
+def test_a_matching_peak_above_the_fap_threshold_ends_the_search():
+    time, noise, rv_err = series()
+    with mock.patch.object(RvFitter, "recover_strongest_signal", side_effect=[search_result(5.0, 0.5),
+                                                                              search_result(5.0, 1e-9)]) as search:
+        result = RvFitter.recover_signal(frame(time, noise, rv_err), 5.0, 3, 0.5, [], MSTAR, 'log', 100, 0.5,
+                                         SEARCH_MAX_PERIOD, 5, 5, 3)
+    assert search.call_count == 1
+    assert not result[0]
+    assert result[1] == 0
+
+
+def test_a_noise_peak_at_the_injected_period_is_not_found():
+    time, noise, rv_err = series(seed=5)
+    peak = RvFitter.recover_strongest_signal(frame(time, noise, rv_err), 'log', 1000, 0.5, SEARCH_MAX_PERIOD, [],
+                                             MSTAR)
+    assert peak[-1] >= 0.01
+    assert not RvFitter.recover_signal(frame(time, noise, rv_err), peak[1], 3, 0.5, [], MSTAR, 'log', 1000, 0.5,
+                                       SEARCH_MAX_PERIOD, 5, 5, 1)[0]

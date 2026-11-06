@@ -260,4 +260,6 @@ The search weights points by `rv_err`. `SNR` and `SDE` are computed from the squ
 
 `RV.MIN_PERIOD_SEARCH` and `RV.PERIOD_MATCH_TOLERANCE` default to the global `MIN_PERIOD_SEARCH` and `PERIOD_MATCH_TOLERANCE`. The tolerance is relative, and on short baselines it can be finer than the period resolution of the search, which marks strong long-period signals as not found. `a_rv_report.csv` is rewritten at most every `RV_REPORT_SAVE_SECONDS` during recovery.
 
+`found` follows the ravex `period+fap` criterion: the peak matches the injected period and its Baluev false alarm probability is below `RV.FAP_THRESHOLD`, 0.01 by default. A value above 1 disables the check. A matching peak above the threshold ends the search for that scenario, because going on would subtract the injected signal. `fap` is the last column of `a_rv_report.csv`, and the last element of the `recover_signal` and `recover_strongest_signal` tuples.
+
 `plot_results` and `plot_diff` draw one cell around each grid value, and use a log axis for grids closer to geometric than arithmetic.

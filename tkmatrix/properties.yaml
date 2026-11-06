@@ -143,6 +143,8 @@ RV:
   MAX_PERIOD_SEARCH: 25
   # Relative period difference to count a signal as found. Defaults to the global PERIOD_MATCH_TOLERANCE
   PERIOD_MATCH_TOLERANCE:
+  # False alarm probability below which a matching peak counts as found. A value above 1 disables the check
+  FAP_THRESHOLD: 0.01
   # Mandatory field where RV measurements are provided
   FILE:
   # Mask known RV signals to make the analysis cleaner

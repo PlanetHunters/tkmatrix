@@ -18,7 +18,8 @@ from lcbuilder.star.starinfo import StarInfo
 from tkmatrix.rv import RvFitter
 from tkmatrix.tkmatrix_class import MATRIX
 
-REPORT_COLUMNS = ['period', 'mass', 'epoch', 'period_found', 'epoch_found', 'mass_found', 'found', 'snr', 'sde', 'run']
+REPORT_COLUMNS = ['period', 'mass', 'epoch', 'period_found', 'epoch_found', 'mass_found', 'found', 'snr', 'sde', 'run',
+                  'fap']
 PERIOD = 6.3
 K = 8.0
 
@@ -80,6 +81,7 @@ def test_recovery_writes_one_contract_row_per_scenario_and_finds_the_massive_pla
     assert len(report) == 8
     assert report[report["mass"] == 40.0]["found"].all()
     assert report["run"].min() >= 0
+    assert report["fap"].between(0, 1).all()
 
 
 def test_results_plot_is_written(matrix, tmp_path):
@@ -166,12 +168,12 @@ def test_rv_search_settings_reach_the_recovery(matrix, tmp_path):
     with mock.patch("tkmatrix.rv.RvFitter.recover_strongest_signal", wraps=RvFitter.recover_strongest_signal) as search:
         matrix.search_input.cores = 1
         scenario = (os.path.join(inject_dir, sorted(f for f in os.listdir(inject_dir) if f.startswith("RV_P"))[0]),
-                    3.0, 2.0, 1.0, None, 0.5, 100, 0.7, 12, 5, 1, 0.2)
+                    3.0, 2.0, 1.0, None, 0.5, 100, 0.7, 12, 5, 1, 0.2, 0.5)
         report, failure = MATRIX.recover_rv_scenario(scenario)
     assert failure is None
     assert search.call_args.args[2] == 100
     assert search.call_args.args[3] == 0.7
-    assert report["found"] == (abs(report["period_found"] - 3.0) / 3.0 < 0.2)
+    assert report["found"] == (abs(report["period_found"] - 3.0) / 3.0 < 0.2 and report["fap"] < 0.5)
 
 
 @pytest.mark.parametrize("settings", [{"min_period_search": 13}, {"min_period_search": 0},
@@ -182,6 +184,15 @@ def test_invalid_rv_search_settings_are_rejected_before_searching(matrix, tmp_pa
     inject_dir, _, _ = inject(matrix, rv_file)
     with pytest.raises(ValueError, match="period"):
         matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1, **settings)
+
+
+@pytest.mark.parametrize("threshold", [0, -0.1])
+def test_invalid_fap_threshold_is_rejected_before_searching(matrix, tmp_path, threshold):
+    rv_file = str(tmp_path / "rv.csv")
+    write_rv_file(rv_file)
+    inject_dir, _, _ = inject(matrix, rv_file)
+    with pytest.raises(ValueError, match="FAP threshold"):
+        matrix.recovery_rv(inject_dir, None, 5, 3, 12, 1, fap_threshold=threshold)
 
 
 def test_recovery_rv_periods_uses_the_minimum_period(matrix, tmp_path):

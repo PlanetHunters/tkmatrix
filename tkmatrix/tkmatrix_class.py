@@ -32,7 +32,7 @@ from scipy.stats import binned_statistic
 from tkmatrix.custom_algorithms.BlsCustomSearchAlgorithm import BlsCustomSearchAlgorithm
 from tkmatrix.inject_model import InjectModel
 from tkmatrix.inject_rv_model import InjectRvModel
-from tkmatrix.rv import RvFitter
+from tkmatrix.rv import DEFAULT_FAP_THRESHOLD, RvFitter
 
 
 @dataclasses.dataclass
@@ -624,7 +624,8 @@ class MATRIX:
         return inject_dir
 
     def recovery_rv(self, inject_dir, rv_masks=None, snr_threshold=5, run_limit=3, max_period_search=25, oversampling=3,
-                    min_period_search=MIN_SEARCH_PERIOD, period_match_tolerance=0.01):
+                    min_period_search=MIN_SEARCH_PERIOD, period_match_tolerance=0.01,
+                    fap_threshold=DEFAULT_FAP_THRESHOLD):
         """Recover injected RV planet signals from all CSV files in the injection directory.
 
         Iterates over injected RV CSV files, runs :meth:`RvFitter.recover_signal`
@@ -648,6 +649,9 @@ class MATRIX:
             Minimum period to search in days. Default ``MIN_SEARCH_PERIOD``.
         period_match_tolerance : float, optional
             Relative period difference below which an injected signal counts as found. Default 0.01.
+        fap_threshold : float, optional
+            False alarm probability below which a matching peak counts as found. A value above 1 disables the check.
+            Default 0.01.
         """
         if not 0 < min_period_search < max_period_search:
             raise ValueError("The minimum search period must be positive and below the maximum one, but they are " +
@@ -655,6 +659,8 @@ class MATRIX:
         if period_match_tolerance <= 0:
             raise ValueError("The period match tolerance must be positive, but it is " +
                              str(period_match_tolerance) + ".")
+        if fap_threshold <= 0:
+            raise ValueError("The FAP threshold must be positive, but it is " + str(fap_threshold) + ".")
         period_grid_size = int((max_period_search - min_period_search) * 100 * oversampling)
         scenarios = []
         for file in sorted(os.listdir(inject_dir)):
@@ -663,7 +669,7 @@ class MATRIX:
                 scenarios.append((os.path.join(inject_dir, file), float(file_name_matches[1]),
                                   float(file_name_matches[2]), float(file_name_matches[3]), rv_masks,
                                   self.search_input.star_info.mass, period_grid_size, min_period_search,
-                                  max_period_search, snr_threshold, run_limit, period_match_tolerance))
+                                  max_period_search, snr_threshold, run_limit, period_match_tolerance, fap_threshold))
         reports = []
         failures = []
         last_save = monotonic()
@@ -710,7 +716,7 @@ class MATRIX:
             Directory to store ``a_rv_report.csv``.
         """
         reports_df = pd.DataFrame(reports, columns=['period', 'mass', 'epoch', 'period_found', 'epoch_found',
-                                                    'mass_found', 'found', 'snr', 'sde', 'run'])
+                                                    'mass_found', 'found', 'snr', 'sde', 'run', 'fap'])
         reports_df = reports_df.sort_values(['period', 'mass', 'epoch'], ascending=[True, True, True])
         reports_df.to_csv(os.path.join(inject_dir, "a_rv_report.csv"), index=False)
 
@@ -722,7 +728,7 @@ class MATRIX:
         ----------
         scenario : tuple
             (file, period, mass, epoch, rv_masks, star_mass, period_grid_size, min_period, max_period_search,
-            snr_threshold, run_limit, period_match_tolerance)
+            snr_threshold, run_limit, period_match_tolerance, fap_threshold)
 
         Returns
         -------
@@ -730,17 +736,18 @@ class MATRIX:
             (report, failure): the row for the RV report and None, or None and the traceback of the failure.
         """
         file, period, m_planet, epoch, rv_masks, star_mass, period_grid_size, min_period, max_period_search, \
-            snr_threshold, run_limit, period_match_tolerance = scenario
+            snr_threshold, run_limit, period_match_tolerance, fap_threshold = scenario
         try:
             df = pd.read_csv(file, float_precision='round_trip', sep=',', usecols=['bjd', 'rv', 'rv_err'])
-            found, run, snr, sde, period_found, omega_found, mass_found = \
+            found, run, snr, sde, period_found, omega_found, mass_found, fap = \
                 RvFitter.recover_signal(df, period, 3, 0.5, rv_masks, star_mass, 'log', period_grid_size, min_period,
                                         max_period_search, snr_threshold, snr_threshold, run_limit,
-                                        period_match_tolerance=period_match_tolerance)
+                                        period_match_tolerance=period_match_tolerance, fap_threshold=fap_threshold)
         except Exception:
             return None, traceback.format_exc()
         return {"period": period, "mass": m_planet, "epoch": epoch, "found": found, "snr": snr, "sde": sde,
-                "run": run, "mass_found": mass_found, "period_found": period_found, "epoch_found": omega_found}, None
+                "run": run, "mass_found": mass_found, "period_found": period_found, "epoch_found": omega_found,
+                "fap": fap}, None
 
     def recovery(self, inject_dir, snr_threshold=5, detrend_method=DETREND_BIWEIGHT, detrend_ws=0,
                  transit_template='tls', run_limit=5, custom_search_algorithm=None, min_period_search=0.5, max_period_search=25,

@@ -22,7 +22,7 @@ def run_cli(tmp_path, photometry):
         "RV": {"FILE": str(rv_file), "PHASES": 1, "MIN_PERIOD": 3.0, "MAX_PERIOD": 6.0, "STEPS_PERIOD": 3,
                "PERIOD_GRID_GEOM": "lin", "MIN_MASS": 5.0, "MAX_MASS": 60.0, "STEPS_MASS": 3,
                "MASS_GRID_GEOM": "lin", "MIN_PERIOD_SEARCH": 0.6, "MAX_PERIOD_SEARCH": 10,
-               "PERIOD_MATCH_TOLERANCE": 0.02, "SNR_THRESHOLD": 5, "RUN_LIMIT": 2,
+               "PERIOD_MATCH_TOLERANCE": 0.02, "FAP_THRESHOLD": 0.02, "SNR_THRESHOLD": 5, "RUN_LIMIT": 2,
                "OVERSAMPLING": 1},
     }
     if photometry:
@@ -43,7 +43,8 @@ def assert_rv_outputs(tmp_path, result):
     inject_dir = directories[0]
     report = pd.read_csv(os.path.join(inject_dir, "a_rv_report.csv"))
     assert report["period_found"].min() >= 0.6
-    assert report["found"].eq((report["period_found"] - report["period"]).abs() / report["period"] < 0.02).all()
+    period_hit = (report["period_found"] - report["period"]).abs() / report["period"] < 0.02
+    assert report["found"].eq(period_hit & (report["fap"] < 0.02)).all()
     assert len(report) == 9
     assert report[report["mass"] == 60.0]["found"].all()
     assert os.path.exists(os.path.join(inject_dir, "rv_thresholds.png"))
