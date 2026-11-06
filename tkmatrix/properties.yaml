@@ -29,6 +29,8 @@ STEPS_RADIUS:
 RADIUS_GRID_GEOM: 'lin'
 # Maximum period for the TLS search done for the recovery. This must be always larger than the maximum period of
 # your grid.
+# The minimum period to be searched during the recovery
+MIN_PERIOD_SEARCH: 0.5
 MAX_PERIOD_SEARCH: 25
 # Choose search engine: cpu|gpu|gpu_approximate
 SEARCH_ENGINE: 'cpu'
@@ -136,7 +138,13 @@ RV:
   MAX_MASS:
   STEPS_MASS:
   MASS_GRID_GEOM: 'lin'
+  # Lower limit for the RV period search. Defaults to the global MIN_PERIOD_SEARCH
+  MIN_PERIOD_SEARCH:
   MAX_PERIOD_SEARCH: 25
+  # Relative period difference to count a signal as found. Defaults to the global PERIOD_MATCH_TOLERANCE
+  PERIOD_MATCH_TOLERANCE:
+  # False alarm probability below which a matching peak counts as found. A value above 1 disables the check
+  FAP_THRESHOLD: 0.01
   # Mandatory field where RV measurements are provided
   FILE:
   # Mask known RV signals to make the analysis cleaner

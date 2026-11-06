@@ -26,11 +26,12 @@ tkmatrix/
 ├── tkmatrix_class.py        # MATRIX class — core engine
 ├── inject_model.py          # Light curve injection (batman + ellc)
 ├── inject_rv_model.py       # Radial Velocity injection
-├── rv.py                    # RV recovery and fitting
+├── rv.py                    # RV injection, recovery and fitting, built on ravex
 ├── bayesian.py              # Bayesian analysis utilities
 ├── custom_algorithms/        # Pluggable search algorithms
 │   └── CustomSearchAlgorithm.py
 ├── ellc/                    # Bundled Fortran/C library (git submodule)
+├── ravex/                   # RV engine, pinned to a tag (git submodule). Never depend on `ravex` from PyPI: it is an unrelated package
 ├── properties.yaml          # Default/reference configuration schema
 ├── programmatic.py           # Example programmatic API usage
 └── tests/
@@ -252,3 +253,13 @@ The properties YAML supports an `RV:` block. When `RV.FILE` is provided, the too
 2. Inject synthetic RV signals (`inject_rv`).
 3. Run RV recovery (`recovery_rv`).
 4. Plot RV results.
+
+If the top-level `PHASES` is empty, the photometric stage is skipped and the run is RV-only.
+
+The search weights points by `rv_err`. `SNR` and `SDE` are computed from the square root of the GLS power, so `SNR_THRESHOLD` keeps its meaning. `epoch_found` in `a_rv_report.csv` holds the fitted phase in radians, not an epoch.
+
+`RV.MIN_PERIOD_SEARCH` and `RV.PERIOD_MATCH_TOLERANCE` default to the global `MIN_PERIOD_SEARCH` and `PERIOD_MATCH_TOLERANCE`. The tolerance is relative, and on short baselines it can be finer than the period resolution of the search, which marks strong long-period signals as not found. `a_rv_report.csv` is rewritten at most every `RV_REPORT_SAVE_SECONDS` during recovery.
+
+`found` follows the ravex `period+fap` criterion: the peak matches the injected period and its Baluev false alarm probability is below `RV.FAP_THRESHOLD`, 0.01 by default. A value above 1 disables the check. A matching peak above the threshold ends the search for that scenario, because going on would subtract the injected signal. `fap` is the last column of `a_rv_report.csv`, and the last element of the `recover_signal` and `recover_strongest_signal` tuples.
+
+`plot_results` and `plot_diff` draw one cell around each grid value, and use a log axis for grids closer to geometric than arithmetic.
