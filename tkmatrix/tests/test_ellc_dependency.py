@@ -12,11 +12,14 @@ import ellc
 class TestEllcDependency(unittest.TestCase):
     def test_inject_model_uses_installed_ellc(self):
         """tkmatrix must use the ellc package from PyPI, not a bundled copy."""
+        import tkmatrix
         import tkmatrix.inject_model as inject_model
 
         package_dir = os.path.dirname(os.path.abspath(ellc.__file__))
+        tkmatrix_dir = os.path.dirname(os.path.abspath(tkmatrix.__file__))
         self.assertEqual("ellc", os.path.basename(package_dir))
-        self.assertNotIn(os.sep + "tkmatrix" + os.sep, package_dir)
+        self.assertFalse(package_dir.startswith(tkmatrix_dir + os.sep),
+                         f"ellc loaded from inside tkmatrix: {package_dir}")
         self.assertIs(inject_model.lc, ellc.lc)
 
     def test_lc_transit_depth(self):
