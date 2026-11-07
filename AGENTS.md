@@ -21,7 +21,7 @@ Always understand the user's question or command fully before writing any code. 
 
 ```
 tkmatrix/
-├── __init__.py              # Builds libellc.so via make; patches ellc module
+├── __init__.py              # Package marker
 ├── __main__.py              # CLI entrypoint
 ├── tkmatrix_class.py        # MATRIX class — core engine
 ├── inject_model.py          # Light curve injection (batman + ellc)
@@ -30,7 +30,6 @@ tkmatrix/
 ├── bayesian.py              # Bayesian analysis utilities
 ├── custom_algorithms/        # Pluggable search algorithms
 │   └── CustomSearchAlgorithm.py
-├── ellc/                    # Bundled Fortran/C library (git submodule)
 ├── ravex/                   # RV engine, pinned to a tag (git submodule). Never depend on `ravex` from PyPI: it is an unrelated package
 ├── properties.yaml          # Default/reference configuration schema
 ├── programmatic.py           # Example programmatic API usage
@@ -116,7 +115,7 @@ matrix.plot_results(target, inject_dir)
 ### Prerequisites
 
 - Python `>= 3.11`
-- `make`, `gfortran`, `gcc` — required to build the bundled `ellc` library (`libellc.so`)
+- `gfortran` — `ellc==1.9.0` is installed from its PyPI sdist and builds `libellc.so` with meson at install time
 - `conda` (tox-conda is used for tests)
 
 ### Conda Environment Setup
@@ -126,7 +125,7 @@ cd /path/to/tkmatrix
 conda create -n tkmatrix311 python=3.11
 conda activate tkmatrix311
 
-# Install the package (triggers make for libellc.so)
+# Install the package (builds the ellc dependency, needs gfortran)
 pip install -e .
 # or install pinned deps first
 pip install -r requirements.txt

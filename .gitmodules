@@ -1,6 +1,3 @@
-[submodule "tkmatrix/ellc"]
-	path = tkmatrix/ellc
-	url = https://github.com/pmaxted/ellc.git
 [submodule "tkmatrix/ravex"]
 	path = tkmatrix/ravex
 	url = https://github.com/franpoz/ravex.git
