@@ -1,8 +1,3 @@
 include tkmatrix/properties.yaml
-graft tkmatrix/ellc
-prune tkmatrix/ellc/doc
-prune tkmatrix/ellc/examples
-prune tkmatrix/ellc/.git
-prune tkmatrix/ellc/.gitignore
 graft tkmatrix/ravex/src
 include tkmatrix/ravex/LICENSE

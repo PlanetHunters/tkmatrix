@@ -23,6 +23,7 @@ corner==2.2.3
 cryptography==50.0.2
 cycler==0.12.1
 Cython==3.0.6
+ellc==1.9.0
 everest-pipeline==2.0.12
 fbpca==1.0
 filelock==4.2.9
