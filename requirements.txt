@@ -24,6 +24,7 @@ cryptography==50.0.2
 cycler==0.12.1
 Cython==3.0.6
 ellc==1.9.0
+emcee==3.1.6
 everest-pipeline==2.0.12
 fbpca==1.0
 filelock==4.2.9
@@ -104,7 +105,7 @@ soupsieve==4.0.1
 sympy==1.14.0
 tess-point==0.9.2
 threadpoolctl==3.8.0
-tkmatrix==0.15.0
+tkmatrix==0.15.1
 torch==2.7.0
 tornado==6.6
 tqdm==4.70.1
